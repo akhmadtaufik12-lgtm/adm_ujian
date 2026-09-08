@@ -45,30 +45,50 @@
   .print-card-grid-4 {
     display: grid !important;
     grid-template-columns: repeat(2, 1fr) !important;
-    gap: 5mm !important;
+    gap: 4mm !important;
     width: 100% !important;
   }
 
   .print-card-grid-6 {
     display: grid !important;
     grid-template-columns: repeat(2, 1fr) !important;
-    gap: 3mm !important;
+    gap: 2.5mm !important;
     width: 100% !important;
   }
 
+  /* Use block layout in print instead of flex column to avoid Chromium flex fragmentation bugs */
   .print-card-stack-2 {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 6mm !important;
+    display: block !important;
     width: 100% !important;
   }
 
   .print-card-stack-3 {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 2mm !important;
+    display: block !important;
     width: 100% !important;
-    justify-content: space-between !important;
+  }
+
+  .f4-card-item {
+    display: block !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin-bottom: 1mm !important;
+  }
+
+  .f4-cut-line {
+    display: block !important;
+    margin-top: 0.5mm !important;
+    margin-bottom: 1mm !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .f4-page-sheet {
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    box-sizing: border-box !important;
   }
 
   /* Force solid black borders on print */

@@ -540,8 +540,29 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
         )}
       </div>
 
+      {/* Dynamic @page CSS rule for crisp browser print sizing */}
+      {paperSize === 'F4' ? (
+        <style>{`
+          @media print {
+            @page {
+              size: 215mm 330mm;
+              margin: 4mm 5mm;
+            }
+          }
+        `}</style>
+      ) : (
+        <style>{`
+          @media print {
+            @page {
+              size: 210mm 297mm;
+              margin: 4mm 5mm;
+            }
+          }
+        `}</style>
+      )}
+
       {/* Printable Pages Container */}
-      <div className="space-y-8">
+      <div className="space-y-8 print:space-y-0">
         {filteredStudents.length === 0 ? (
           <div className="bg-white p-12 text-center rounded-xl border border-slate-200 text-slate-400">
             Tidak ada siswa yang sesuai dengan filter pencarian.
@@ -550,9 +571,7 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
           chunkedStudents.map((pageGroup, pageIndex) => (
             <div
               key={pageIndex}
-              className={`page-break-after-always bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-xs print:border-none print:shadow-none print:p-0 ${
-                pageIndex > 0 ? 'print:mt-4' : ''
-              }`}
+              className="f4-page-sheet page-break-after-always bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-xs print:border-none print:shadow-none print:p-0 print:m-0 print:bg-transparent"
             >
               {/* Page Number indicator for screen viewing */}
               <div className="text-right text-[10px] text-slate-400 font-mono mb-3 pb-1 border-b border-slate-100 no-print flex justify-between">
@@ -565,8 +584,8 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
                 className={
                   cardFormat === 'schedule_card'
                     ? cardLayout === '3_per_page'
-                      ? 'flex flex-col gap-2 print:gap-1.5 print-card-stack-3'
-                      : 'flex flex-col gap-5 print:gap-5 print-card-stack-2'
+                      ? 'print-card-stack-3 flex flex-col gap-2'
+                      : 'print-card-stack-2 flex flex-col gap-5'
                     : cardLayout === '6_per_page'
                       ? 'grid grid-cols-1 md:grid-cols-2 gap-2.5 print:gap-2 print-card-grid-6'
                       : 'grid grid-cols-1 md:grid-cols-2 gap-4 print:gap-4 print-card-grid-4'
@@ -596,9 +615,9 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
 
                     {/* Cutting line guide between cards in 3_per_page layout */}
                     {cardLayout === '3_per_page' && idx < pageGroup.length - 1 && (
-                      <div className="relative my-0.5 flex items-center justify-center">
-                        <div className="border-t border-dashed border-slate-300 print:border-black/50 w-full" />
-                        <span className="absolute bg-white px-2 text-[9px] text-slate-400 print:text-black font-mono flex items-center gap-1">
+                      <div className="relative my-0.5 flex items-center justify-center f4-cut-line">
+                        <div className="border-t border-dashed border-slate-400 print:border-black/60 w-full" />
+                        <span className="absolute bg-white px-2 text-[8.5px] text-slate-500 print:text-black font-mono flex items-center gap-1">
                           ✂️ Garis Potong Kertas F4 ({idx + 1}/3)
                         </span>
                       </div>
@@ -869,24 +888,24 @@ const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
     <div
       className={`page-break-inside-avoid bg-white border-2 border-black text-black font-sans shadow-xs print:shadow-none w-full mx-auto select-text ${
         isF4ThreeCards
-          ? 'p-2 sm:p-2.5 max-w-[820px] f4-card-item'
+          ? 'p-1.5 max-w-[820px] f4-card-item'
           : 'p-3 sm:p-4 max-w-[850px]'
       }`}
     >
       {/* 2-Column Split: Left = Identitas & Kop, Right = Jadwal UAS & Paraf Pengawas */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-0 border border-black">
+      <div className="grid grid-cols-12 gap-0 border border-black">
         
         {/* ========================================================= */}
         {/* LEFT PANEL: KOP SEKOLAH, KARTU PESERTA, BIODATA, RUANG, TTD */}
         {/* ========================================================= */}
-        <div className={`md:col-span-6 border-b md:border-b-0 md:border-r border-black flex flex-col justify-between ${
-          isF4ThreeCards ? 'p-2 sm:p-2.5' : 'p-3'
+        <div className={`col-span-6 border-r border-black flex flex-col justify-between ${
+          isF4ThreeCards ? 'p-1.5' : 'p-3'
         }`}>
           <div>
             {/* Kop Sekolah */}
-            <div className="flex items-center gap-2.5 pb-1.5">
+            <div className="flex items-center gap-2 pb-1">
               {/* Emblem / Logo */}
-              <div className={`${isF4ThreeCards ? 'w-9 h-9' : 'w-12 h-12'} shrink-0 flex items-center justify-center`}>
+              <div className={`${isF4ThreeCards ? 'w-8 h-8' : 'w-12 h-12'} shrink-0 flex items-center justify-center`}>
                 <svg viewBox="0 0 100 100" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
                   {/* Outer Shield */}
                   <path d="M50 6 L88 20 C88 56 50 90 50 90 C50 90 12 56 12 20 Z" fill="#0284c7" stroke="#000" strokeWidth="2.5" />
@@ -905,14 +924,14 @@ const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
               {/* School Info */}
               <div className="flex-1 text-center pr-1">
                 <h3 className={`font-extrabold uppercase tracking-wide leading-tight text-black ${
-                  isF4ThreeCards ? 'text-[11.5px] sm:text-xs' : 'text-[13px] sm:text-sm'
+                  isF4ThreeCards ? 'text-[11px] sm:text-xs' : 'text-[13px] sm:text-sm'
                 }`}>
                   {config.schoolName || 'NAMA SEKOLAH ANDA'}
                 </h3>
-                <p className={`${isF4ThreeCards ? 'text-[8.5px]' : 'text-[9.5px]'} text-black leading-tight mt-0.5`}>
+                <p className={`${isF4ThreeCards ? 'text-[8px]' : 'text-[9.5px]'} text-black leading-tight mt-0.5`}>
                   {config.address || 'Jalan Gelang Jaya'}
                 </p>
-                <p className={`${isF4ThreeCards ? 'text-[7.5px]' : 'text-[8.5px]'} text-black leading-tight mt-0.5`}>
+                <p className={`${isF4ThreeCards ? 'text-[7px]' : 'text-[8.5px]'} text-black leading-tight mt-0.5`}>
                   Telp. {config.phone || '....'} Email {config.email || '......'}
                 </p>
               </div>
@@ -921,61 +940,61 @@ const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
             {/* Banner KARTU PESERTA */}
             <div className={`border-y-2 border-black text-center ${isF4ThreeCards ? 'py-0.5 my-0.5' : 'py-1 my-1'}`}>
               <h4 className={`font-extrabold uppercase tracking-widest text-black leading-tight ${
-                isF4ThreeCards ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
+                isF4ThreeCards ? 'text-[11px] sm:text-xs' : 'text-sm sm:text-base'
               }`}>
                 KARTU PESERTA
               </h4>
             </div>
 
             {/* Biodata Siswa */}
-            <div className={`text-black ${isF4ThreeCards ? 'py-1 space-y-0.5 text-[10px] sm:text-[10.5px]' : 'py-2.5 space-y-1.5 text-xs'}`}>
+            <div className={`text-black ${isF4ThreeCards ? 'py-0.5 space-y-0.5 text-[9.5px]' : 'py-2.5 space-y-1.5 text-xs'}`}>
               <div className="flex items-baseline">
-                <span className={`${isF4ThreeCards ? 'w-20 text-[10px]' : 'w-24 text-[11px] sm:text-xs'} font-normal text-black`}>Nama</span>
-                <span className="w-2.5 text-center">:</span>
-                <span className={`font-bold uppercase flex-1 truncate ${isF4ThreeCards ? 'text-[10px] sm:text-[10.5px]' : 'text-[11px] sm:text-xs'}`}>{student.name}</span>
+                <span className={`${isF4ThreeCards ? 'w-18 text-[9px]' : 'w-24 text-[11px] sm:text-xs'} font-normal text-black`}>Nama</span>
+                <span className="w-2 text-center">:</span>
+                <span className={`font-bold uppercase flex-1 truncate ${isF4ThreeCards ? 'text-[9.5px] sm:text-[10px]' : 'text-[11px] sm:text-xs'}`}>{student.name}</span>
               </div>
               <div className="flex items-baseline">
-                <span className={`${isF4ThreeCards ? 'w-20 text-[10px]' : 'w-24 text-[11px] sm:text-xs'} font-normal text-black`}>Kelas</span>
-                <span className="w-2.5 text-center">:</span>
-                <span className={`font-bold flex-1 ${isF4ThreeCards ? 'text-[10px] sm:text-[10.5px]' : 'text-[11px] sm:text-xs'}`}>{student.className}</span>
+                <span className={`${isF4ThreeCards ? 'w-18 text-[9px]' : 'w-24 text-[11px] sm:text-xs'} font-normal text-black`}>Kelas</span>
+                <span className="w-2 text-center">:</span>
+                <span className={`font-bold flex-1 ${isF4ThreeCards ? 'text-[9.5px] sm:text-[10px]' : 'text-[11px] sm:text-xs'}`}>{student.className}</span>
               </div>
               <div className="flex items-baseline">
-                <span className={`${isF4ThreeCards ? 'w-20 text-[10px]' : 'w-24 text-[11px] sm:text-xs'} font-normal text-black`}>No. Peserta</span>
-                <span className="w-2.5 text-center">:</span>
-                <span className={`font-bold font-mono flex-1 ${isF4ThreeCards ? 'text-[10px] sm:text-[10.5px]' : 'text-[11px] sm:text-xs'}`}>{student.examNumber}</span>
+                <span className={`${isF4ThreeCards ? 'w-18 text-[9px]' : 'w-24 text-[11px] sm:text-xs'} font-normal text-black`}>No. Peserta</span>
+                <span className="w-2 text-center">:</span>
+                <span className={`font-bold font-mono flex-1 ${isF4ThreeCards ? 'text-[9.5px] sm:text-[10px]' : 'text-[11px] sm:text-xs'}`}>{student.examNumber}</span>
               </div>
             </div>
           </div>
 
           {/* Bottom section: Ruang Box & Signature */}
-          <div className={`${isF4ThreeCards ? 'mt-1' : 'mt-2'}`}>
+          <div className={`${isF4ThreeCards ? 'mt-0.5' : 'mt-2'}`}>
             <div className="flex items-end justify-between gap-2">
               {/* Ruang Box */}
-              <div className={`border border-black text-center shrink-0 ${isF4ThreeCards ? 'w-20' : 'w-24 sm:w-28'}`}>
-                <div className={`border-b border-black font-medium text-black bg-white ${isF4ThreeCards ? 'py-0 text-[9.5px]' : 'py-0.5 text-[11px]'}`}>
+              <div className={`border border-black text-center shrink-0 ${isF4ThreeCards ? 'w-16' : 'w-24 sm:w-28'}`}>
+                <div className={`border-b border-black font-medium text-black bg-white ${isF4ThreeCards ? 'py-0 text-[8.5px]' : 'py-0.5 text-[11px]'}`}>
                   Ruang
                 </div>
-                <div className={`font-extrabold text-black leading-none font-sans ${isF4ThreeCards ? 'py-0.5 text-xl sm:text-2xl' : 'py-1 sm:py-2 text-2xl sm:text-3xl'}`}>
+                <div className={`font-extrabold text-black leading-none font-sans ${isF4ThreeCards ? 'py-0 text-lg sm:text-xl' : 'py-1 sm:py-2 text-2xl sm:text-3xl'}`}>
                   {roomDisplayNumber}
                 </div>
               </div>
 
               {/* Tanda Tangan Block */}
-              <div className={`text-right leading-tight text-black shrink-0 ${isF4ThreeCards ? 'text-[9px]' : 'text-[10px]'}`}>
+              <div className={`text-right leading-tight text-black shrink-0 ${isF4ThreeCards ? 'text-[8.5px]' : 'text-[10px]'}`}>
                 <p className="text-black">{config.issuePlace || 'Gresik'}, {config.issueDate || '30 September 2014'}</p>
                 <p className="font-semibold mt-0.5 text-black">{signerTitle}</p>
-                <div className={`flex items-center justify-end ${isF4ThreeCards ? 'h-5 sm:h-6' : 'h-8 sm:h-10'}`}>
+                <div className={`flex items-center justify-end ${isF4ThreeCards ? 'h-3.5 sm:h-4' : 'h-8 sm:h-10'}`}>
                   {/* Space for stamp/signature */}
                 </div>
-                <p className={`font-bold uppercase underline leading-tight text-black ${isF4ThreeCards ? 'text-[9.5px]' : 'text-[10.5px]'}`}>{signerName}</p>
-                <p className={`font-mono mt-0.5 text-black ${isF4ThreeCards ? 'text-[7.5px]' : 'text-[9px]'}`}>NIP {signerNip || '-'}</p>
+                <p className={`font-bold uppercase underline leading-tight text-black ${isF4ThreeCards ? 'text-[9px]' : 'text-[10.5px]'}`}>{signerName}</p>
+                <p className={`font-mono mt-0.5 text-black ${isF4ThreeCards ? 'text-[7px]' : 'text-[9px]'}`}>NIP {signerNip || '-'}</p>
               </div>
             </div>
 
             {/* Notice Footer */}
-            <div className={`text-black border-t border-dotted border-black/40 ${isF4ThreeCards ? 'mt-1 pt-0.5 text-[8px]' : 'mt-3 pt-1 text-[9px]'}`}>
+            <div className={`text-black border-t border-dotted border-black/40 ${isF4ThreeCards ? 'mt-0.5 pt-0.5 text-[7.5px]' : 'mt-3 pt-1 text-[9px]'}`}>
               <span className="underline italic font-medium">PERHATIAN :</span>
-              <p className={`italic ${isF4ThreeCards ? 'text-[7.5px]' : 'text-[8.5px]'}`}>Selama ulangan berlangsung, kartu ini harus dibawa</p>
+              <p className={`italic ${isF4ThreeCards ? 'text-[7px]' : 'text-[8.5px]'}`}>Selama ulangan berlangsung, kartu ini harus dibawa</p>
             </div>
           </div>
         </div>
@@ -983,18 +1002,18 @@ const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
         {/* ========================================================= */}
         {/* RIGHT PANEL: JADWAL UAS, NO. ABSEN & TABEL PARAF PENGAWAS */}
         {/* ========================================================= */}
-        <div className={`md:col-span-6 flex flex-col justify-between bg-white ${isF4ThreeCards ? 'p-1.5 sm:p-2' : 'p-2 sm:p-2.5'}`}>
+        <div className={`col-span-6 flex flex-col justify-between bg-white ${isF4ThreeCards ? 'p-1.5' : 'p-2 sm:p-2.5'}`}>
           <div>
             {/* Header: Title & No. Absen */}
-            <div className="flex items-start justify-between gap-2 pb-1 border-b border-black">
-              <div className="flex-1 text-center pl-6">
+            <div className="flex items-start justify-between gap-2 pb-0.5 border-b border-black">
+              <div className="flex-1 text-center pl-4">
                 <h5 className={`font-extrabold uppercase tracking-tight text-black leading-tight ${
-                  isF4ThreeCards ? 'text-[10px] sm:text-[10.5px]' : 'text-[11px] sm:text-xs'
+                  isF4ThreeCards ? 'text-[9.5px] sm:text-[10px]' : 'text-[11px] sm:text-xs'
                 }`}>
                   {scheduleTitle}
                 </h5>
                 <p className={`font-bold uppercase text-black leading-tight mt-0.5 ${
-                  isF4ThreeCards ? 'text-[9px] sm:text-[9.5px]' : 'text-[10px] sm:text-[10.5px]'
+                  isF4ThreeCards ? 'text-[8px] sm:text-[8.5px]' : 'text-[10px] sm:text-[10.5px]'
                 }`}>
                   TAHUN PELAJARAN {config.academicYear || '2014/2015'}
                 </p>
@@ -1002,33 +1021,33 @@ const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
 
               {/* No. Absen */}
               <div className="text-right shrink-0">
-                <span className={`font-medium block text-black leading-none ${isF4ThreeCards ? 'text-[8.5px]' : 'text-[9.5px]'}`}>No. Absen</span>
-                <span className={`font-mono font-bold text-black block mt-0.5 leading-none ${isF4ThreeCards ? 'text-xs sm:text-[13px]' : 'text-xs sm:text-sm'}`}>
+                <span className={`font-medium block text-black leading-none ${isF4ThreeCards ? 'text-[7.5px]' : 'text-[9.5px]'}`}>No. Absen</span>
+                <span className={`font-mono font-bold text-black block mt-0.5 leading-none ${isF4ThreeCards ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'}`}>
                   {absenNumber}
                 </span>
               </div>
             </div>
 
             {/* Schedule Table */}
-            <div className="mt-1 overflow-x-auto">
+            <div className="mt-0.5 overflow-x-auto">
               <table className={`w-full border-collapse border border-black leading-tight text-black ${
-                isF4ThreeCards ? 'text-[7.5px] sm:text-[8px]' : 'text-[9px] sm:text-[9.5px]'
+                isF4ThreeCards ? 'text-[7px] sm:text-[7.5px]' : 'text-[9px] sm:text-[9.5px]'
               }`}>
                 <thead>
                   <tr className="bg-slate-100 font-bold text-black border-b border-black">
-                    <th className={`border border-black text-center font-bold w-[22%] ${isF4ThreeCards ? 'p-0.5' : 'p-1'}`}>
+                    <th className={`border border-black text-center font-bold w-[22%] ${isF4ThreeCards ? 'p-0.5 text-[7px]' : 'p-1'}`}>
                       Hari/Tgl.
                     </th>
-                    <th className={`border border-black text-center font-bold w-[9%] ${isF4ThreeCards ? 'p-0.5' : 'p-1'}`}>
+                    <th className={`border border-black text-center font-bold w-[9%] ${isF4ThreeCards ? 'p-0.5 text-[7px]' : 'p-1'}`}>
                       Jam<br />Ke
                     </th>
-                    <th className={`border border-black text-center font-bold w-[21%] ${isF4ThreeCards ? 'p-0.5' : 'p-1'}`}>
+                    <th className={`border border-black text-center font-bold w-[21%] ${isF4ThreeCards ? 'p-0.5 text-[7px]' : 'p-1'}`}>
                       Waktu
                     </th>
-                    <th className={`border border-black text-left font-bold w-[32%] pl-1 ${isF4ThreeCards ? 'p-0.5 pl-1' : 'p-1 pl-1.5'}`}>
+                    <th className={`border border-black text-left font-bold w-[32%] pl-1 ${isF4ThreeCards ? 'p-0.5 pl-1 text-[7px]' : 'p-1 pl-1.5'}`}>
                       Mata Pelajaran
                     </th>
-                    <th className={`border border-black text-center font-bold w-[16%] ${isF4ThreeCards ? 'p-0.5' : 'p-1'}`}>
+                    <th className={`border border-black text-center font-bold w-[16%] ${isF4ThreeCards ? 'p-0.5 text-[7px]' : 'p-1'}`}>
                       T. Tangan<br />Pengawas
                     </th>
                   </tr>
@@ -1043,39 +1062,39 @@ const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
                           <td
                             rowSpan={sessionCount}
                             className={`border border-black text-center align-middle font-medium leading-tight bg-white ${
-                              isF4ThreeCards ? 'p-0.5' : 'p-1'
+                              isF4ThreeCards ? 'p-0.5 text-[6.5px]' : 'p-1'
                             }`}
                           >
                             <div className="font-bold text-black">{dayGroup.dayName}</div>
-                            <div className={`text-black mt-0.5 ${isF4ThreeCards ? 'text-[7px] sm:text-[7.5px]' : 'text-[8px] sm:text-[8.5px]'}`}>{dayGroup.date}</div>
+                            <div className={`text-black mt-0.5 ${isF4ThreeCards ? 'text-[6.5px]' : 'text-[8px] sm:text-[8.5px]'}`}>{dayGroup.date}</div>
                           </td>
                         )}
 
                         {/* Jam Ke */}
-                        <td className={`border border-black text-center align-middle font-mono font-semibold ${isF4ThreeCards ? 'p-0.5' : 'p-1'}`}>
+                        <td className={`border border-black text-center align-middle font-mono font-semibold ${isF4ThreeCards ? 'p-0.5 text-[7px]' : 'p-1'}`}>
                           {session.jamKe}
                         </td>
 
                         {/* Waktu */}
                         <td className={`border border-black text-center align-middle font-mono ${
-                          isF4ThreeCards ? 'p-0.5 text-[7.5px] sm:text-[8px]' : 'p-1 text-[8.5px] sm:text-[9px]'
+                          isF4ThreeCards ? 'p-0.5 text-[6.5px]' : 'p-1 text-[8.5px] sm:text-[9px]'
                         }`}>
                           {session.time}
                         </td>
 
                         {/* Mata Pelajaran */}
                         <td className={`border border-black text-left align-middle font-semibold text-black ${
-                          isF4ThreeCards ? 'p-0.5 pl-1' : 'p-1 pl-1.5'
+                          isF4ThreeCards ? 'p-0.5 pl-1 text-[7px]' : 'p-1 pl-1.5'
                         }`}>
                           {session.subject}
                         </td>
 
                         {/* T. Tangan Pengawas (with numbered slot 1, 2, 3...) */}
                         <td className={`border border-black text-left align-top relative bg-white ${
-                          isF4ThreeCards ? 'p-0.5 h-4.5 sm:h-5' : 'p-1 h-6 sm:h-7'
+                          isF4ThreeCards ? 'p-0.5 h-3.5' : 'p-1 h-6 sm:h-7'
                         }`}>
                           <span className={`font-mono font-bold text-black block leading-none ${
-                            isF4ThreeCards ? 'text-[7.5px]' : 'text-[8.5px]'
+                            isF4ThreeCards ? 'text-[6.5px]' : 'text-[8.5px]'
                           }`}>
                             {session.overallIndex}
                           </span>
