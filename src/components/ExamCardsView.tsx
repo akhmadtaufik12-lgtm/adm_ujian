@@ -105,6 +105,7 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
   const [cardFormat, setCardFormat] = useState<'schedule_card' | 'compact_card'>('schedule_card');
   const [paperSize, setPaperSize] = useState<'F4' | 'A4'>('F4');
   const [cardLayout, setCardLayout] = useState<'3_per_page' | '2_per_page' | '1_per_page' | '6_per_page' | '4_per_page'>('3_per_page');
+  const [printScale, setPrintScale] = useState<'100' | '94' | '88'>('100');
   const [signatory, setSignatory] = useState<'committee' | 'principal'>('committee'); // Ketua Pelaksana as in example image
 
   // Schedule management
@@ -238,8 +239,17 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
         @media print {
           @page {
             size: ${paperSize === 'F4' ? '215mm 330mm portrait' : 'A4 portrait'};
-            margin: ${paperSize === 'F4' ? (cardLayout === '4_per_page' ? '3mm 4mm' : '4mm 5mm') : '7mm 6mm'};
+            margin: ${cardLayout === '3_per_page' || cardLayout === '4_per_page' ? '2.5mm 3.5mm' : '5mm 5mm'};
           }
+          ${printScale === '94' ? `
+            .f4-page-sheet {
+              zoom: 0.94 !important;
+            }
+          ` : printScale === '88' ? `
+            .f4-page-sheet {
+              zoom: 0.88 !important;
+            }
+          ` : ''}
         }
       `}</style>
 
@@ -507,9 +517,52 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
                       ? 'bg-emerald-800 text-emerald-100'
                       : 'bg-emerald-100 text-emerald-800'
                   }`}>
-                    Maksimal 1 Lembar (Proporsional)
+                    Pas 1 Lembar (3 Siswa)
                   </span>
                 </button>
+
+                {/* Skala Kerapatan Cetak Otomatis */}
+                {cardLayout === '3_per_page' && (
+                  <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                    <span className="text-[10px] font-bold text-slate-600 px-1.5">Skala:</span>
+                    <button
+                      type="button"
+                      onClick={() => setPrintScale('100')}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                        printScale === '100'
+                          ? 'bg-emerald-700 text-white shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900 bg-white'
+                      }`}
+                      title="Skala standar pas 1 lembar F4"
+                    >
+                      100% (Standar)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPrintScale('94')}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                        printScale === '94'
+                          ? 'bg-emerald-700 text-white shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900 bg-white'
+                      }`}
+                      title="Kompak 94% - Jika printer Anda masih memotong ke lembar 2 atau menggunakan kertas A4"
+                    >
+                      94% (Kompak)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPrintScale('88')}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                        printScale === '88'
+                          ? 'bg-emerald-700 text-white shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900 bg-white'
+                      }`}
+                      title="Ekstra ramping 88% untuk printer dengan margin fisik lebar"
+                    >
+                      88% (Ekstra)
+                    </button>
+                  </div>
+                )}
 
                 {/* F4 1 Kertas 4 Kartu (Super Hemat) */}
                 <button
@@ -625,7 +678,12 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
           <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-lg text-emerald-900 text-xs flex items-center gap-2.5">
             <span className="text-lg">💡</span>
             <div className="flex-1 leading-relaxed">
-              <strong>Tips Cetak Kertas F4 / Folio ({cardLayout === '4_per_page' ? '1 Kertas 4 Kartu' : '1 Kertas 3 Kartu'}):</strong> Saat dialog Cetak / Print browser terbuka (<kbd className="px-1 py-0.5 bg-white border border-emerald-300 rounded font-mono text-[10px]">Ctrl+P</kbd>), pastikan opsi <em>Ukuran Kertas (Paper size)</em> dipilih <strong>Folio / F4 (8.5 × 13 in / 215 × 330 mm)</strong> atau <em>Legal</em>, dan atur <em>Margin</em>: <strong>{cardLayout === '4_per_page' ? 'Minimum (3-4 mm)' : 'Default / Minimum'}</strong> agar seluruh {cardLayout === '4_per_page' ? '4' : '3'} kartu pas tercetak dalam 1 lembar utuh.
+              <strong>Jaminan Pas 3 Kartu per Lembar F4 / Folio:</strong> Seluruh dimensi kartu dan tabel jadwal telah dioptimalkan secara presisi agar 3 kartu siswa muat sempurna dalam 1 lembar utuh tanpa tumpah ke lembar kedua. Saat dialog Cetak / Print browser terbuka (<kbd className="px-1 py-0.5 bg-white border border-emerald-300 rounded font-mono text-[10px]">Ctrl+P</kbd>):
+              <ul className="list-disc list-inside mt-1 space-y-0.5 text-[11px] text-emerald-800">
+                <li>Pilih <em>Ukuran Kertas (Paper size)</em>: <strong>Folio / F4 (8.5 × 13 in / 215 × 330 mm)</strong> atau <em>Legal</em>.</li>
+                <li>Atur <em>Margin</em>: <strong>Minimum</strong> atau <strong>Default</strong>.</li>
+                <li>Jika printer Anda masih mengeluarkan 2 kartu di lembar pertama, aktifkan tombol <strong>"Skala: 94% (Kompak)"</strong> di atas agar otomatis muat pas 3 kartu.</li>
+              </ul>
             </div>
           </div>
         )}
@@ -656,7 +714,7 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
                     ? cardLayout === '4_per_page'
                       ? 'print-card-stack-4 flex flex-col gap-1.5'
                       : cardLayout === '3_per_page'
-                        ? 'print-card-stack-3 flex flex-col gap-2.5'
+                        ? 'print-card-stack-3 flex flex-col gap-1 sm:gap-1.5'
                         : 'print-card-stack-2 flex flex-col gap-5'
                     : cardLayout === '6_per_page'
                       ? 'grid grid-cols-1 md:grid-cols-2 gap-2.5 print:gap-2 print-card-grid-6'
@@ -688,9 +746,9 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
 
                     {/* Cutting line guide between cards in 3_per_page layout */}
                     {cardLayout === '3_per_page' && idx < pageGroup.length - 1 && (
-                      <div className="relative my-1.5 flex items-center justify-center f4-cut-line-3">
+                      <div className="relative my-0.5 flex items-center justify-center f4-cut-line-3">
                         <div className="border-t border-dashed border-slate-400 print:border-black/60 w-full" />
-                        <span className="absolute bg-white px-2 text-[8.5px] text-slate-500 print:text-black font-mono flex items-center gap-1">
+                        <span className="absolute bg-white px-2 text-[7.5px] text-slate-500 print:text-black font-mono flex items-center gap-1">
                           ✂️ Garis Potong Kertas F4 ({idx + 1}/3)
                         </span>
                       </div>
@@ -1142,7 +1200,7 @@ const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
         isFour
           ? 'p-1 max-w-[820px] f4-card-item-4'
           : isThree
-            ? 'p-2 sm:p-2.5 max-w-[830px] f4-card-item-3'
+            ? 'p-1 sm:p-1.5 max-w-[830px] f4-card-item-3'
             : 'p-3 sm:p-4 max-w-[850px]'
       }`}
     >
@@ -1153,13 +1211,13 @@ const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
         {/* LEFT PANEL: KOP SEKOLAH, KARTU PESERTA, BIODATA, RUANG, TTD */}
         {/* ========================================================= */}
         <div className={`col-span-6 border-r border-black flex flex-col justify-between ${
-          isFour ? 'p-1 sm:p-1.5' : isThree ? 'p-2 sm:p-2.5' : 'p-3'
+          isFour ? 'p-1 sm:p-1.5' : isThree ? 'p-1 sm:p-1.5' : 'p-3'
         }`}>
           <div>
             {/* Kop Sekolah */}
-            <div className={`flex items-center gap-2 ${isFour ? 'pb-0.5' : isThree ? 'pb-1' : 'pb-1.5'}`}>
+            <div className={`flex items-center gap-1.5 ${isFour ? 'pb-0.5' : isThree ? 'pb-0.5' : 'pb-1.5'}`}>
               {/* Emblem / Logo */}
-              <div className={`${isFour ? 'w-7 h-7' : isThree ? 'w-9 h-9 sm:w-10 sm:h-10' : 'w-12 h-12'} shrink-0 flex items-center justify-center`}>
+              <div className={`${isFour ? 'w-7 h-7' : isThree ? 'w-7.5 h-7.5 sm:w-8 sm:h-8' : 'w-12 h-12'} shrink-0 flex items-center justify-center`}>
                 {config.logoUrl ? (
                   <img
                     src={config.logoUrl}
@@ -1186,77 +1244,77 @@ const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
               {/* School Info */}
               <div className="flex-1 text-center pr-1">
                 <h3 className={`font-extrabold uppercase tracking-wide leading-tight text-black ${
-                  isFour ? 'text-[10px] sm:text-[10.5px]' : isThree ? 'text-xs sm:text-[13px]' : 'text-[13px] sm:text-sm'
+                  isFour ? 'text-[10px] sm:text-[10.5px]' : isThree ? 'text-[10.5px] sm:text-[11px]' : 'text-[13px] sm:text-sm'
                 }`}>
                   {config.schoolName || 'NAMA SEKOLAH ANDA'}
                 </h3>
-                <p className={`${isFour ? 'text-[7px]' : isThree ? 'text-[8.5px] sm:text-[9px]' : 'text-[9.5px]'} text-black leading-tight mt-0.5`}>
+                <p className={`${isFour ? 'text-[7px]' : isThree ? 'text-[7.5px] sm:text-[8px]' : 'text-[9.5px]'} text-black leading-tight mt-0.5`}>
                   {config.address || 'Jalan Gelang Jaya'}
                 </p>
-                <p className={`${isFour ? 'text-[6.5px]' : isThree ? 'text-[7.5px] sm:text-[8px]' : 'text-[8.5px]'} text-black leading-tight mt-0.5`}>
+                <p className={`${isFour ? 'text-[6.5px]' : isThree ? 'text-[7px] sm:text-[7.5px]' : 'text-[8.5px]'} text-black leading-tight mt-0.5`}>
                   Telp. {config.phone || '....'} Email {config.email || '......'}
                 </p>
               </div>
             </div>
 
             {/* Banner KARTU PESERTA */}
-            <div className={`border-y-2 border-black text-center ${isFour ? 'py-0.5 my-0.5' : isThree ? 'py-0.5 my-1' : 'py-1 my-1'}`}>
+            <div className={`border-y-2 border-black text-center ${isFour ? 'py-0.5 my-0.5' : isThree ? 'py-0.2 my-0.5' : 'py-1 my-1'}`}>
               <h4 className={`font-extrabold uppercase tracking-widest text-black leading-tight ${
-                isFour ? 'text-[9.5px] sm:text-[10px]' : isThree ? 'text-xs sm:text-[13px]' : 'text-sm sm:text-base'
+                isFour ? 'text-[9.5px] sm:text-[10px]' : isThree ? 'text-[10px] sm:text-[10.5px]' : 'text-sm sm:text-base'
               }`}>
                 KARTU PESERTA
               </h4>
             </div>
 
             {/* Biodata Siswa */}
-            <div className={`text-black ${isFour ? 'py-0.5 space-y-0.5 text-[8.5px]' : isThree ? 'py-1 space-y-0.5 text-[10px] sm:text-[10.5px]' : 'py-2.5 space-y-1.5 text-xs'}`}>
+            <div className={`text-black ${isFour ? 'py-0.5 space-y-0.5 text-[8.5px]' : isThree ? 'py-0.5 space-y-0.2 text-[9px] sm:text-[9.5px]' : 'py-2.5 space-y-1.5 text-xs'}`}>
               <div className="flex items-baseline">
-                <span className={`${isFour ? 'w-16 text-[8px]' : isThree ? 'w-20 sm:w-22 text-[9.5px]' : 'w-24 text-[11px] sm:text-xs'} font-normal text-black`}>Nama</span>
+                <span className={`${isFour ? 'w-16 text-[8px]' : isThree ? 'w-18 sm:w-20 text-[8.5px]' : 'w-24 text-[11px] sm:text-xs'} font-normal text-black`}>Nama</span>
                 <span className="w-2 text-center">:</span>
-                <span className={`font-bold uppercase flex-1 truncate ${isFour ? 'text-[8.5px] sm:text-[9px]' : isThree ? 'text-[10px] sm:text-[10.5px]' : 'text-[11px] sm:text-xs'}`}>{student.name}</span>
+                <span className={`font-bold uppercase flex-1 truncate ${isFour ? 'text-[8.5px] sm:text-[9px]' : isThree ? 'text-[9px] sm:text-[9.5px]' : 'text-[11px] sm:text-xs'}`}>{student.name}</span>
               </div>
               <div className="flex items-baseline">
-                <span className={`${isFour ? 'w-16 text-[8px]' : isThree ? 'w-20 sm:w-22 text-[9.5px]' : 'w-24 text-[11px] sm:text-xs'} font-normal text-black`}>Kelas</span>
+                <span className={`${isFour ? 'w-16 text-[8px]' : isThree ? 'w-18 sm:w-20 text-[8.5px]' : 'w-24 text-[11px] sm:text-xs'} font-normal text-black`}>Kelas</span>
                 <span className="w-2 text-center">:</span>
-                <span className={`font-bold flex-1 ${isFour ? 'text-[8.5px] sm:text-[9px]' : isThree ? 'text-[10px] sm:text-[10.5px]' : 'text-[11px] sm:text-xs'}`}>{student.className}</span>
+                <span className={`font-bold flex-1 ${isFour ? 'text-[8.5px] sm:text-[9px]' : isThree ? 'text-[9px] sm:text-[9.5px]' : 'text-[11px] sm:text-xs'}`}>{student.className}</span>
               </div>
               <div className="flex items-baseline">
-                <span className={`${isFour ? 'w-16 text-[8px]' : isThree ? 'w-20 sm:w-22 text-[9.5px]' : 'w-24 text-[11px] sm:text-xs'} font-normal text-black`}>No. Peserta</span>
+                <span className={`${isFour ? 'w-16 text-[8px]' : isThree ? 'w-18 sm:w-20 text-[8.5px]' : 'w-24 text-[11px] sm:text-xs'} font-normal text-black`}>No. Peserta</span>
                 <span className="w-2 text-center">:</span>
-                <span className={`font-bold font-mono flex-1 ${isFour ? 'text-[8.5px] sm:text-[9px]' : isThree ? 'text-[10px] sm:text-[10.5px]' : 'text-[11px] sm:text-xs'}`}>{student.examNumber}</span>
+                <span className={`font-bold font-mono flex-1 ${isFour ? 'text-[8.5px] sm:text-[9px]' : isThree ? 'text-[9px] sm:text-[9.5px]' : 'text-[11px] sm:text-xs'}`}>{student.examNumber}</span>
               </div>
             </div>
           </div>
 
           {/* Bottom section: Ruang Box & Signature */}
-          <div className={`${isFour ? 'mt-0.5' : isThree ? 'mt-1.5' : 'mt-2'}`}>
+          <div className={`${isFour ? 'mt-0.5' : isThree ? 'mt-0.5' : 'mt-2'}`}>
             <div className="flex items-end justify-between gap-2">
               {/* Ruang Box */}
-              <div className={`border border-black text-center shrink-0 ${isFour ? 'w-14 sm:w-16' : isThree ? 'w-20 sm:w-22' : 'w-24 sm:w-28'}`}>
-                <div className={`border-b border-black font-medium text-black bg-white ${isFour ? 'py-0 text-[7px]' : isThree ? 'py-0.5 text-[9.5px]' : 'py-0.5 text-[11px]'}`}>
+              <div className={`border border-black text-center shrink-0 ${isFour ? 'w-14 sm:w-16' : isThree ? 'w-16 sm:w-18' : 'w-24 sm:w-28'}`}>
+                <div className={`border-b border-black font-medium text-black bg-white ${isFour ? 'py-0 text-[7px]' : isThree ? 'py-0 text-[8px]' : 'py-0.5 text-[11px]'}`}>
                   Ruang
                 </div>
-                <div className={`font-extrabold text-black leading-none font-sans ${isFour ? 'py-0 text-base sm:text-lg' : isThree ? 'py-0.5 text-2xl sm:text-[26px]' : 'py-1 sm:py-2 text-2xl sm:text-3xl'}`}>
+                <div className={`font-extrabold text-black leading-none font-sans ${isFour ? 'py-0 text-base sm:text-lg' : isThree ? 'py-0.2 text-xl sm:text-[22px]' : 'py-1 sm:py-2 text-2xl sm:text-3xl'}`}>
                   {roomDisplayNumber}
                 </div>
               </div>
 
               {/* Tanda Tangan Block */}
-              <div className={`text-right leading-tight text-black shrink-0 ${isFour ? 'text-[7.5px]' : isThree ? 'text-[9px] sm:text-[9.5px]' : 'text-[10px]'}`}>
+              <div className={`text-right leading-tight text-black shrink-0 ${isFour ? 'text-[7.5px]' : isThree ? 'text-[8px] sm:text-[8.5px]' : 'text-[10px]'}`}>
                 <p className="text-black">{config.issuePlace || 'Gresik'}, {config.issueDate || '30 September 2014'}</p>
                 <p className="font-semibold mt-0.5 text-black">{signerTitle}</p>
-                <div className={`flex items-center justify-end ${isFour ? 'h-2.5 sm:h-3' : isThree ? 'h-5 sm:h-6' : 'h-8 sm:h-10'}`}>
+                <div className={`flex items-center justify-end ${isFour ? 'h-2.5 sm:h-3' : isThree ? 'h-3 sm:h-3.5' : 'h-8 sm:h-10'}`}>
                   {/* Space for stamp/signature */}
                 </div>
-                <p className={`font-bold uppercase underline leading-tight text-black ${isFour ? 'text-[8px]' : isThree ? 'text-[10px]' : 'text-[10.5px]'}`}>{signerName}</p>
-                <p className={`font-mono mt-0.5 text-black ${isFour ? 'text-[6.5px]' : isThree ? 'text-[8px]' : 'text-[9px]'}`}>NIP {signerNip || '-'}</p>
+                <p className={`font-bold uppercase underline leading-tight text-black ${isFour ? 'text-[8px]' : isThree ? 'text-[9px]' : 'text-[10.5px]'}`}>{signerName}</p>
+                <p className={`font-mono mt-0.5 text-black ${isFour ? 'text-[6.5px]' : isThree ? 'text-[7.5px]' : 'text-[9px]'}`}>NIP {signerNip || '-'}</p>
               </div>
             </div>
 
             {/* Notice Footer */}
-            <div className={`text-black border-t border-dotted border-black/40 ${isFour ? 'mt-0.5 pt-0.5 text-[6.5px]' : isThree ? 'mt-1.5 pt-1 text-[8px]' : 'mt-3 pt-1 text-[9px]'}`}>
+            <div className={`text-black border-t border-dotted border-black/40 ${isFour ? 'mt-0.5 pt-0.5 text-[6.5px]' : isThree ? 'mt-0.5 pt-0.5 text-[7px]' : 'mt-3 pt-1 text-[9px]'}`}>
               <span className="underline italic font-medium">PERHATIAN :</span>
-              <p className={`italic ${isFour ? 'text-[6.5px]' : isThree ? 'text-[7.5px]' : 'text-[8.5px]'}`}>Selama ulangan berlangsung, kartu ini harus dibawa</p>
+              <p className={`italic ${isFour ? 'text-[6.5px]' : isThree ? 'text-[7px]' : 'text-[8.5px]'}`}>Selama ulangan berlangsung, kartu ini harus dibawa</p>
             </div>
           </div>
         </div>
@@ -1265,19 +1323,19 @@ const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
         {/* RIGHT PANEL: JADWAL UAS, NO. ABSEN & TABEL PARAF PENGAWAS */}
         {/* ========================================================= */}
         <div className={`col-span-6 flex flex-col justify-between bg-white ${
-          isFour ? 'p-1 sm:p-1.5' : isThree ? 'p-2 sm:p-2.5' : 'p-2 sm:p-2.5'
+          isFour ? 'p-1 sm:p-1.5' : isThree ? 'p-1 sm:p-1.5' : 'p-2 sm:p-2.5'
         }`}>
           <div>
             {/* Header: Title & No. Absen */}
             <div className="flex items-start justify-between gap-2 pb-0.5 border-b border-black">
               <div className="flex-1 text-center pl-4">
                 <h5 className={`font-extrabold uppercase tracking-tight text-black leading-tight ${
-                  isFour ? 'text-[8.5px] sm:text-[9px]' : isThree ? 'text-[10.5px] sm:text-[11px]' : 'text-[11px] sm:text-xs'
+                  isFour ? 'text-[8.5px] sm:text-[9px]' : isThree ? 'text-[9.5px] sm:text-[10px]' : 'text-[11px] sm:text-xs'
                 }`}>
                   {scheduleTitle}
                 </h5>
                 <p className={`font-bold uppercase text-black leading-tight mt-0.5 ${
-                  isFour ? 'text-[7px] sm:text-[7.5px]' : isThree ? 'text-[8.5px] sm:text-[9px]' : 'text-[10px] sm:text-[10.5px]'
+                  isFour ? 'text-[7px] sm:text-[7.5px]' : isThree ? 'text-[7.5px] sm:text-[8px]' : 'text-[10px] sm:text-[10.5px]'
                 }`}>
                   TAHUN PELAJARAN {config.academicYear || '2014/2015'}
                 </p>
@@ -1285,8 +1343,8 @@ const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
 
               {/* No. Absen */}
               <div className="text-right shrink-0">
-                <span className={`font-medium block text-black leading-none ${isFour ? 'text-[7px]' : isThree ? 'text-[8.5px]' : 'text-[9.5px]'}`}>No. Absen</span>
-                <span className={`font-mono font-bold text-black block mt-0.5 leading-none ${isFour ? 'text-[10px] sm:text-[11px]' : isThree ? 'text-xs sm:text-sm' : 'text-xs sm:text-sm'}`}>
+                <span className={`font-medium block text-black leading-none ${isFour ? 'text-[7px]' : isThree ? 'text-[7.5px]' : 'text-[9.5px]'}`}>No. Absen</span>
+                <span className={`font-mono font-bold text-black block mt-0.5 leading-none ${isFour ? 'text-[10px] sm:text-[11px]' : isThree ? 'text-xs sm:text-[13px]' : 'text-xs sm:text-sm'}`}>
                   {absenNumber}
                 </span>
               </div>
@@ -1295,23 +1353,23 @@ const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
             {/* Schedule Table */}
             <div className="mt-0.5 overflow-x-auto">
               <table className={`w-full border-collapse border border-black leading-tight text-black ${
-                isFour ? 'text-[6.5px]' : isThree ? 'text-[7.5px] sm:text-[8px]' : 'text-[9px] sm:text-[9.5px]'
+                isFour ? 'text-[6.5px]' : isThree ? 'text-[6.8px]' : 'text-[9px] sm:text-[9.5px]'
               }`}>
                 <thead>
                   <tr className="bg-slate-100 font-bold text-black border-b border-black">
-                    <th className={`border border-black text-center font-bold w-[22%] ${isFour ? 'p-0.5 text-[6.5px]' : isThree ? 'p-0.5 text-[7.5px]' : 'p-1'}`}>
+                    <th className={`border border-black text-center font-bold w-[22%] ${isFour ? 'p-0.5 text-[6.5px]' : isThree ? 'p-0.5 text-[6.8px]' : 'p-1'}`}>
                       Hari/Tgl.
                     </th>
-                    <th className={`border border-black text-center font-bold w-[9%] ${isFour ? 'p-0.5 text-[6.5px]' : isThree ? 'p-0.5 text-[7.5px]' : 'p-1'}`}>
+                    <th className={`border border-black text-center font-bold w-[9%] ${isFour ? 'p-0.5 text-[6.5px]' : isThree ? 'p-0.5 text-[6.8px]' : 'p-1'}`}>
                       Jam<br />Ke
                     </th>
-                    <th className={`border border-black text-center font-bold w-[21%] ${isFour ? 'p-0.5 text-[6.5px]' : isThree ? 'p-0.5 text-[7.5px]' : 'p-1'}`}>
+                    <th className={`border border-black text-center font-bold w-[21%] ${isFour ? 'p-0.5 text-[6.5px]' : isThree ? 'p-0.5 text-[6.8px]' : 'p-1'}`}>
                       Waktu
                     </th>
-                    <th className={`border border-black text-left font-bold w-[32%] pl-1 ${isFour ? 'p-0.5 pl-1 text-[6.5px]' : isThree ? 'p-0.5 pl-1.5 text-[7.5px]' : 'p-1 pl-1.5'}`}>
+                    <th className={`border border-black text-left font-bold w-[32%] pl-1 ${isFour ? 'p-0.5 pl-1 text-[6.5px]' : isThree ? 'p-0.5 pl-1 text-[6.8px]' : 'p-1 pl-1.5'}`}>
                       Mata Pelajaran
                     </th>
-                    <th className={`border border-black text-center font-bold w-[16%] ${isFour ? 'p-0.5 text-[6.5px]' : isThree ? 'p-0.5 text-[7.5px]' : 'p-1'}`}>
+                    <th className={`border border-black text-center font-bold w-[16%] ${isFour ? 'p-0.5 text-[6.5px]' : isThree ? 'p-0.5 text-[6.8px]' : 'p-1'}`}>
                       T. Tangan<br />Pengawas
                     </th>
                   </tr>
@@ -1326,39 +1384,39 @@ const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
                           <td
                             rowSpan={sessionCount}
                             className={`border border-black text-center align-middle font-medium leading-tight bg-white ${
-                              isFour ? 'p-0.5 text-[6px]' : isThree ? 'p-0.5 text-[7.5px]' : 'p-1'
+                              isFour ? 'p-0.5 text-[6px]' : isThree ? 'p-0.5 text-[6.5px]' : 'p-1'
                             }`}
                           >
                             <div className="font-bold text-black">{dayGroup.dayName}</div>
-                            <div className={`text-black mt-0.5 ${isFour ? 'text-[6px]' : isThree ? 'text-[7.5px]' : 'text-[8px] sm:text-[8.5px]'}`}>{dayGroup.date}</div>
+                            <div className={`text-black mt-0.5 ${isFour ? 'text-[6px]' : isThree ? 'text-[6.5px]' : 'text-[8px] sm:text-[8.5px]'}`}>{dayGroup.date}</div>
                           </td>
                         )}
 
                         {/* Jam Ke */}
-                        <td className={`border border-black text-center align-middle font-mono font-semibold ${isFour ? 'p-0.5 text-[6.5px]' : isThree ? 'p-0.5 text-[8px]' : 'p-1'}`}>
+                        <td className={`border border-black text-center align-middle font-mono font-semibold ${isFour ? 'p-0.5 text-[6.5px]' : isThree ? 'p-0.5 text-[7px]' : 'p-1'}`}>
                           {session.jamKe}
                         </td>
 
                         {/* Waktu */}
                         <td className={`border border-black text-center align-middle font-mono ${
-                          isFour ? 'p-0.5 text-[6px]' : isThree ? 'p-0.5 text-[7.5px]' : 'p-1 text-[8.5px] sm:text-[9px]'
+                          isFour ? 'p-0.5 text-[6px]' : isThree ? 'p-0.5 text-[6.5px]' : 'p-1 text-[8.5px] sm:text-[9px]'
                         }`}>
                           {session.time}
                         </td>
 
                         {/* Mata Pelajaran */}
                         <td className={`border border-black text-left align-middle font-semibold text-black ${
-                          isFour ? 'p-0.5 pl-1 text-[6.5px]' : isThree ? 'p-0.5 pl-1.5 text-[8px]' : 'p-1 pl-1.5'
+                          isFour ? 'p-0.5 pl-1 text-[6.5px]' : isThree ? 'p-0.5 pl-1 text-[7px]' : 'p-1 pl-1.5'
                         }`}>
                           {session.subject}
                         </td>
 
                         {/* T. Tangan Pengawas (with numbered slot 1, 2, 3...) */}
                         <td className={`border border-black text-left align-top relative bg-white ${
-                          isFour ? 'p-0.5 h-3 text-[6px]' : isThree ? 'p-0.5 h-4.5 sm:h-5 text-[7.5px]' : 'p-1 h-6 sm:h-7'
+                          isFour ? 'p-0.5 h-3 text-[6px]' : isThree ? 'p-0.5 h-3 text-[6px]' : 'p-1 h-6 sm:h-7'
                         }`}>
                           <span className={`font-mono font-bold text-black block leading-none ${
-                            isFour ? 'text-[6px]' : isThree ? 'text-[7.5px]' : 'text-[8.5px]'
+                            isFour ? 'text-[6px]' : isThree ? 'text-[6.5px]' : 'text-[8.5px]'
                           }`}>
                             {session.overallIndex}
                           </span>
@@ -1371,7 +1429,7 @@ const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
             </div>
           </div>
 
-          <div className={`text-right text-slate-500 italic mt-0.5 ${isFour ? 'text-[6.5px]' : isThree ? 'text-[7.5px]' : 'text-[8px]'}`}>
+          <div className={`text-right text-slate-500 italic mt-0.5 ${isFour ? 'text-[6.5px]' : isThree ? 'text-[6.5px]' : 'text-[8px]'}`}>
             * Paraf pengawas ruang wajib diisi setiap sesi ujian
           </div>
         </div>

@@ -12,7 +12,7 @@
 @media print {
   @page {
     size: auto;
-    margin: 5mm 5mm;
+    margin: 3mm 4mm;
   }
 
   body {
@@ -72,19 +72,20 @@
     width: 100% !important;
   }
 
-  /* 3 Cards per sheet (Maximized layout to fill 1 F4 sheet proportionally) */
+  /* 3 Cards per sheet (Strictly scaled & proportioned so 3 cards never spill onto a 2nd page) */
   .f4-card-item-3 {
     display: block !important;
     box-sizing: border-box !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    margin-bottom: 2mm !important;
+    margin-bottom: 0.8mm !important;
+    max-height: 98mm !important;
   }
 
   .f4-cut-line-3 {
     display: block !important;
-    margin-top: 1.5mm !important;
-    margin-bottom: 2.5mm !important;
+    margin-top: 0.4mm !important;
+    margin-bottom: 0.6mm !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
