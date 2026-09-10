@@ -205,6 +205,51 @@ export const ExamDocumentsView: React.FC<ExamDocumentsViewProps> = ({
   );
 };
 
+/* --- SHARED OFFICIAL KOP SURAT --- */
+const OfficialDocumentHeader: React.FC<{ config: ExamConfig }> = ({ config }) => {
+  const isMadrasah = ['MTs', 'MA', 'MI'].includes(config.schoolLevel);
+  return (
+    <div className="border-b-2 border-slate-900 pb-2">
+      <div className="flex items-center gap-3">
+        {config.logoUrl && (
+          <div className="w-14 h-14 shrink-0 flex items-center justify-center">
+            <img src={config.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+          </div>
+        )}
+        <div className="flex-1 text-center font-serif text-slate-900">
+          {isMadrasah ? (
+            <>
+              <div className="text-[10px] uppercase font-bold text-slate-700 tracking-wider">
+                KEMENTERIAN AGAMA REPUBLIK INDONESIA
+              </div>
+              <div className="text-[10px] uppercase font-bold text-slate-700 tracking-wider">
+                KANTOR KEMENTERIAN AGAMA {config.district.toUpperCase()}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-[10px] uppercase font-bold text-slate-700 tracking-wider">
+                PEMERINTAH DAERAH PROVINSI {config.province.toUpperCase()}
+              </div>
+              <div className="text-[10px] uppercase font-bold text-slate-700 tracking-wider">
+                DINAS PENDIDIKAN DAN KEBUDAYAAN
+              </div>
+            </>
+          )}
+          <div className="text-base font-black uppercase text-slate-950 mt-0.5">
+            {config.schoolName}
+          </div>
+          <div className="text-[9px] font-sans text-slate-600">
+            {config.address} • Telp: {config.phone} • Email: {config.email}
+          </div>
+        </div>
+      </div>
+      <div className="border-b border-slate-900 mt-1"></div>
+      <div className="border-b-2 border-slate-900 mt-0.5"></div>
+    </div>
+  );
+};
+
 /* --- 1. DAFTAR HADIR (PRESENSI RUANG UJIAN) --- */
 const AttendanceSheet: React.FC<{
   config: ExamConfig;
@@ -214,23 +259,8 @@ const AttendanceSheet: React.FC<{
 }> = ({ config, room, students, subject }) => {
   return (
     <div className="font-serif text-slate-900 text-xs space-y-4">
-      {/* Official Header */}
-      <div className="text-center border-b-2 border-slate-900 pb-2">
-        <div className="text-[10px] uppercase font-bold text-slate-700 tracking-wider">
-          PEMERINTAH DAERAH PROVINSI {config.province.toUpperCase()}
-        </div>
-        <div className="text-[10px] uppercase font-bold text-slate-700 tracking-wider">
-          DINAS PENDIDIKAN DAN KEBUDAYAAN
-        </div>
-        <div className="text-base font-black uppercase text-slate-950 mt-0.5">
-          {config.schoolName}
-        </div>
-        <div className="text-[9px] font-sans text-slate-600">
-          {config.address} • Telp: {config.phone}
-        </div>
-        <div className="border-b border-slate-900 mt-1"></div>
-        <div className="border-b-2 border-slate-900 mt-0.5"></div>
-      </div>
+      {/* Official Header with Logo */}
+      <OfficialDocumentHeader config={config} />
 
       {/* Document Title */}
       <div className="text-center font-sans">
@@ -438,23 +468,8 @@ const ExamMinutesSheet: React.FC<{
 }> = ({ config, room, students, subject }) => {
   return (
     <div className="font-serif text-slate-900 text-xs space-y-4 max-w-4xl mx-auto">
-      {/* Official Header */}
-      <div className="text-center border-b-2 border-slate-900 pb-2">
-        <div className="text-[10px] uppercase font-bold text-slate-700 tracking-wider">
-          PEMERINTAH DAERAH PROVINSI {config.province.toUpperCase()}
-        </div>
-        <div className="text-[10px] uppercase font-bold text-slate-700 tracking-wider">
-          DINAS PENDIDIKAN DAN KEBUDAYAAN
-        </div>
-        <div className="text-base font-black uppercase text-slate-950 mt-0.5">
-          {config.schoolName}
-        </div>
-        <div className="text-[9px] font-sans text-slate-600">
-          {config.address} • Telp: {config.phone}
-        </div>
-        <div className="border-b border-slate-900 mt-1"></div>
-        <div className="border-b-2 border-slate-900 mt-0.5"></div>
-      </div>
+      {/* Official Header with Logo */}
+      <OfficialDocumentHeader config={config} />
 
       <div className="text-center font-sans">
         <h3 className="text-sm font-black uppercase tracking-wider">
@@ -560,17 +575,26 @@ const DoorRosterSheet: React.FC<{
 }> = ({ config, room, students }) => {
   return (
     <div className="font-sans text-slate-900 text-xs space-y-4">
-      {/* Header */}
-      <div className="text-center border-b-2 border-slate-900 pb-3">
-        <div className="text-[10px] uppercase font-bold text-slate-600">
-          {config.schoolName}
+      {/* Header with Logo */}
+      <div className="border-b-2 border-slate-900 pb-3">
+        <div className="flex items-center gap-3">
+          {config.logoUrl && (
+            <div className="w-12 h-12 shrink-0 flex items-center justify-center">
+              <img src={config.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+            </div>
+          )}
+          <div className="flex-1 text-center">
+            <div className="text-[10px] uppercase font-bold text-slate-600">
+              {config.schoolName}
+            </div>
+            <h3 className="text-base sm:text-lg font-black uppercase text-slate-950 mt-0.5">
+              DAFTAR PESERTA UJIAN DI {room?.name} ({room?.roomCode})
+            </h3>
+            <p className="text-xs font-semibold text-slate-700">
+              {config.examTitle} • TP {config.academicYear}
+            </p>
+          </div>
         </div>
-        <h3 className="text-lg font-black uppercase text-slate-950 mt-0.5">
-          DAFTAR PESERTA UJIAN DI {room?.name} ({room?.roomCode})
-        </h3>
-        <p className="text-xs font-semibold text-slate-700">
-          {config.examTitle} • TP {config.academicYear}
-        </p>
       </div>
 
       <div className="flex justify-between items-center bg-slate-100 p-3 rounded font-medium text-xs">

@@ -415,6 +415,7 @@ export default function App() {
             rooms={rooms}
             schedules={schedules}
             onUpdateSchedules={setSchedules}
+            onUpdateConfig={handleSaveConfig}
           />
         )}
 

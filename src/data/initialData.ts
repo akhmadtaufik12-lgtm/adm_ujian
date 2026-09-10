@@ -1,4 +1,5 @@
 import { ExamConfig, ExamRoom, ExamScheduleItem, Student } from '../types';
+import { PRESET_LOGO_KEMENAG } from '../utils/logoUtils';
 
 export const initialConfig: ExamConfig = {
   schoolName: 'MTS MANBAUL ISLAM',
@@ -22,8 +23,9 @@ export const initialConfig: ExamConfig = {
   issueDate: '08 Juni 2026',
   issuePlace: 'Bogor',
   stampEnabled: true,
-  schoolLevel: 'SMP',
+  schoolLevel: 'MTs',
   codePrefix: '26-07',
+  logoUrl: PRESET_LOGO_KEMENAG,
 };
 
 export const initialRooms: ExamRoom[] = [
