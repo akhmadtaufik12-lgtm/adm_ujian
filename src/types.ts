@@ -22,6 +22,10 @@ export interface ExamConfig {
   issueDate: string;
   issuePlace: string;
   stampEnabled: boolean;
+  signatureEnabled?: boolean;
+  signatureUrl?: string; // Base64 data URI or SVG for Tanda Tangan
+  stampUrl?: string; // Base64 data URI or SVG for Stempel Sekolah / Madrasah
+  signatureSigner?: 'principal' | 'committee'; // Penandatangan: Kepala Sekolah atau Ketua Panitia
   schoolLevel: 'MTs' | 'MA' | 'MI' | 'SMP' | 'SMA' | 'SMK' | 'SD';
   codePrefix: string; // e.g. "26-04"
   logoUrl?: string; // Base64 data URI or SVG string of school/madrasah logo

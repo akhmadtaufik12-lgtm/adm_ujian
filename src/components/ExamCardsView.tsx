@@ -20,7 +20,11 @@ import {
   AlertCircle,
   X,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Type,
+  Sliders,
+  FileSignature,
+  Stamp
 } from 'lucide-react';
 import { 
   processLogoFile, 
@@ -28,6 +32,13 @@ import {
   PRESET_LOGO_MTS, 
   PRESET_LOGO_TUTWURI 
 } from '../utils/logoUtils';
+import { SignatureStampModal } from './SignatureStampModal';
+
+export interface CardFontSizes {
+  nameSize: number; // 0 for auto/default, or in px (7 - 16)
+  numberSize: number; // 0 for auto/default, or in px (7 - 16)
+  roomSize: number; // 0 for auto/default, or in px (12 - 36)
+}
 
 interface ExamCardsViewProps {
   config: ExamConfig;
@@ -108,13 +119,86 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
   const [printScale, setPrintScale] = useState<'100' | '94' | '88'>('100');
   const [signatory, setSignatory] = useState<'committee' | 'principal'>('committee'); // Ketua Pelaksana as in example image
 
+  // Custom Font Sizes: Nama, Nomor Peserta, Ruang
+  const [showFontSizePanel, setShowFontSizePanel] = useState(false);
+  const [fontSizes, setFontSizes] = useState<CardFontSizes>(() => {
+    try {
+      const saved = localStorage.getItem('exam_card_font_sizes');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return { nameSize: 0, numberSize: 0, roomSize: 0 };
+  });
+
+  const updateFontSize = (key: keyof CardFontSizes, value: number) => {
+    setFontSizes(prev => {
+      const next = { ...prev, [key]: Math.max(0, value) };
+      try {
+        localStorage.setItem('exam_card_font_sizes', JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
+  };
+
+  const resetFontSizes = () => {
+    const defaults = { nameSize: 0, numberSize: 0, roomSize: 0 };
+    setFontSizes(defaults);
+    try {
+      localStorage.removeItem('exam_card_font_sizes');
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // Schedule management
   const [activePreset, setActivePreset] = useState<'sample_image' | 'mts' | 'custom'>('sample_image');
   const [localSchedules, setLocalSchedules] = useState<ExamScheduleItem[]>(() => {
     return IMAGE_SAMPLE_SCHEDULE;
   });
-  const [scheduleTitle, setScheduleTitle] = useState('JADWAL UAS GENAP KELAS VII DAN VIII');
+
+  // Dynamically compute default schedule title based on active config (examType, semester, classes)
+  const defaultScheduleTitle = useMemo(() => {
+    const type = config.examType || 'STS';
+    const sem = config.semester ? config.semester.toUpperCase() : 'GANJIL';
+
+    // Extract distinct levels from student classes (e.g. VII, VIII, IX)
+    const levels = new Set<string>();
+    students.forEach((s) => {
+      const match = s.className.match(/^(VII|VIII|IX|X|XI|XII|\d+)/i);
+      if (match) levels.add(match[1].toUpperCase());
+    });
+    
+    let levelStr = 'KELAS VII DAN VIII';
+    if (levels.size > 0) {
+      const sorted = Array.from(levels);
+      if (sorted.length === 1) levelStr = `KELAS ${sorted[0]}`;
+      else if (sorted.length === 2) levelStr = `KELAS ${sorted[0]} DAN ${sorted[1]}`;
+      else levelStr = `KELAS ${sorted.slice(0, -1).join(', ')} DAN ${sorted[sorted.length - 1]}`;
+    }
+    
+    return `JADWAL ${type} ${sem} ${levelStr}`;
+  }, [config.examType, config.semester, students]);
+
+  // Allow user custom title, but discard old hardcoded "UAS" legacy titles
+  const [customScheduleTitle, setCustomScheduleTitle] = useState<string | null>(() => {
+    try {
+      const saved = localStorage.getItem('custom_exam_schedule_title');
+      if (saved && (saved.includes('UAS') || saved.includes('uas'))) {
+        localStorage.removeItem('custom_exam_schedule_title');
+        return null;
+      }
+      return saved || null;
+    } catch {
+      return null;
+    }
+  });
+
+  const scheduleTitle = customScheduleTitle || defaultScheduleTitle;
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showSignatureStampModal, setShowSignatureStampModal] = useState(false);
 
   // All unique classes
   const classes = useMemo(() => {
@@ -167,14 +251,19 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
   // Switch preset
   const handleSelectPreset = (preset: 'sample_image' | 'mts') => {
     setActivePreset(preset);
+    setCustomScheduleTitle(null);
+    try {
+      localStorage.removeItem('custom_exam_schedule_title');
+    } catch (e) {
+      console.error(e);
+    }
+
     if (preset === 'sample_image') {
       setLocalSchedules(IMAGE_SAMPLE_SCHEDULE);
-      setScheduleTitle('JADWAL UAS GENAP KELAS VII DAN VIII');
       if (onUpdateSchedules) onUpdateSchedules(IMAGE_SAMPLE_SCHEDULE);
     } else {
       const mtsData = MTS_MADRASAH_SCHEDULE;
       setLocalSchedules(mtsData);
-      setScheduleTitle(`JADWAL ASESMEN ${config.examType} KELAS VII, VIII & IX`);
       if (onUpdateSchedules) onUpdateSchedules(mtsData);
     }
   };
@@ -285,6 +374,30 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
               </span>
             </button>
 
+            {/* Menu Atur Ukuran Font (Nama, No. Peserta, Ruang) */}
+            <button
+              type="button"
+              onClick={() => setShowFontSizePanel(!showFontSizePanel)}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer shadow-2xs ${
+                showFontSizePanel || fontSizes.nameSize > 0 || fontSizes.numberSize > 0 || fontSizes.roomSize > 0
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-xs ring-2 ring-amber-300'
+                  : 'bg-white hover:bg-amber-50 text-slate-800 hover:text-amber-900 border-slate-300'
+              }`}
+              title="Atur ukuran font Nama Siswa, Nomor Peserta, dan Ruang pada kartu"
+            >
+              <Type className="w-4 h-4 shrink-0" />
+              <span>Ukuran Font</span>
+              {(fontSizes.nameSize > 0 || fontSizes.numberSize > 0 || fontSizes.roomSize > 0) ? (
+                <span className="text-[10px] px-1.5 py-0.2 rounded font-semibold bg-amber-700 text-amber-100">
+                  Kustom
+                </span>
+              ) : (
+                <span className="text-[10px] px-1.5 py-0.2 rounded font-semibold bg-slate-100 text-slate-600">
+                  Bawaan
+                </span>
+              )}
+            </button>
+
             <button
               type="button"
               onClick={() => setShowScheduleModal(true)}
@@ -293,6 +406,30 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
             >
               <Calendar className="w-4 h-4 text-indigo-600" />
               <span>Kelola Jadwal ({localSchedules.length} Sesi)</span>
+            </button>
+
+            {/* Menu Upload TTD & Stempel */}
+            <button
+              type="button"
+              onClick={() => setShowSignatureStampModal(true)}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer shadow-2xs ${
+                (config.stampEnabled && config.stampUrl) || (config.signatureEnabled !== false && config.signatureUrl)
+                  ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border-indigo-300 ring-1 ring-indigo-300'
+                  : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300'
+              }`}
+              title="Upload atau atur tanda tangan dan stempel resmi madrasah/sekolah pada kartu ujian"
+            >
+              <FileSignature className="w-4 h-4 text-indigo-600 shrink-0" />
+              <span>TTD &amp; Stempel</span>
+              {((config.stampEnabled && config.stampUrl) || (config.signatureEnabled !== false && config.signatureUrl)) ? (
+                <span className="text-[10px] px-1.5 py-0.2 rounded font-semibold bg-emerald-600 text-white">
+                  Aktif
+                </span>
+              ) : (
+                <span className="text-[10px] px-1.5 py-0.2 rounded font-semibold bg-slate-100 text-slate-500">
+                  Atur
+                </span>
+              )}
             </button>
 
             {/* Direct Print Button */}
@@ -356,6 +493,373 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
               <ExternalLink className="w-3.5 h-3.5" />
               <span>Buka Tab Baru</span>
             </a>
+          </div>
+        )}
+
+        {/* Panel Pengaturan Ukuran Font (Nama, Nomor Peserta, Ruang) */}
+        {showFontSizePanel && (
+          <div className="p-4 bg-amber-50/80 border-2 border-amber-300 rounded-xl space-y-3.5 transition-all animate-in fade-in duration-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-200/80 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold shadow-2xs shrink-0">
+                  <Type className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-amber-950 flex items-center gap-2">
+                    <span>Atur Ukuran Font Kartu Peserta</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 font-mono">
+                      Nama • No. Peserta • Ruang
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-amber-800">
+                    Sesuaikan ukuran teks secara presisi agar kartu lebih mudah dibaca, lebih tebal, atau lebih hemat ruang cetak.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-end sm:self-center">
+                <button
+                  type="button"
+                  onClick={resetFontSizes}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-amber-900 bg-white hover:bg-amber-100 rounded-lg border border-amber-300 cursor-pointer transition-colors shadow-2xs"
+                  title="Kembalikan semua ukuran font ke bawaan awal"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Reset Bawaan</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowFontSizePanel(false)}
+                  className="p-1 text-amber-800 hover:text-amber-950 hover:bg-amber-200 rounded-md transition-colors cursor-pointer"
+                  title="Tutup panel ukuran font"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* 3 Kolom Pengaturan Ukuran */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* 1. Nama Siswa */}
+              <div className="bg-white p-3 rounded-lg border border-amber-200 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <span>👤 Nama Siswa</span>
+                  </span>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900">
+                    {fontSizes.nameSize === 0 ? 'Bawaan (Auto)' : `${fontSizes.nameSize} px`}
+                  </span>
+                </div>
+
+                {/* Stepper + Slider */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => updateFontSize('nameSize', (fontSizes.nameSize || 10) - 1)}
+                    disabled={fontSizes.nameSize !== 0 && fontSizes.nameSize <= 7}
+                    className="w-7 h-7 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-30 flex items-center justify-center font-bold text-slate-700 cursor-pointer text-sm"
+                    title="Perkecil font nama"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="range"
+                    min="7"
+                    max="16"
+                    step="1"
+                    value={fontSizes.nameSize || 10}
+                    onChange={(e) => updateFontSize('nameSize', Number(e.target.value))}
+                    className="flex-1 accent-amber-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => updateFontSize('nameSize', (fontSizes.nameSize || 10) + 1)}
+                    disabled={fontSizes.nameSize >= 16}
+                    className="w-7 h-7 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-30 flex items-center justify-center font-bold text-slate-700 cursor-pointer text-sm"
+                    title="Perbesar font nama"
+                  >
+                    +
+                  </button>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="flex flex-wrap gap-1 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => updateFontSize('nameSize', 0)}
+                    className={`px-2 py-0.5 rounded text-[10px] border cursor-pointer ${
+                      fontSizes.nameSize === 0 
+                        ? 'bg-amber-600 text-white border-amber-700 font-bold' 
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    Auto
+                  </button>
+                  {[8, 9, 10, 11, 12, 13, 14].map((sz) => (
+                    <button
+                      key={sz}
+                      type="button"
+                      onClick={() => updateFontSize('nameSize', sz)}
+                      className={`px-1.5 py-0.5 rounded text-[10px] border cursor-pointer ${
+                        fontSizes.nameSize === sz 
+                          ? 'bg-amber-600 text-white border-amber-700 font-bold' 
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {sz}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 2. Nomor Peserta */}
+              <div className="bg-white p-3 rounded-lg border border-amber-200 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <span>🔢 Nomor Peserta</span>
+                  </span>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900">
+                    {fontSizes.numberSize === 0 ? 'Bawaan (Auto)' : `${fontSizes.numberSize} px`}
+                  </span>
+                </div>
+
+                {/* Stepper + Slider */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => updateFontSize('numberSize', (fontSizes.numberSize || 10) - 1)}
+                    disabled={fontSizes.numberSize !== 0 && fontSizes.numberSize <= 7}
+                    className="w-7 h-7 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-30 flex items-center justify-center font-bold text-slate-700 cursor-pointer text-sm"
+                    title="Perkecil font nomor peserta"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="range"
+                    min="7"
+                    max="16"
+                    step="1"
+                    value={fontSizes.numberSize || 10}
+                    onChange={(e) => updateFontSize('numberSize', Number(e.target.value))}
+                    className="flex-1 accent-amber-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => updateFontSize('numberSize', (fontSizes.numberSize || 10) + 1)}
+                    disabled={fontSizes.numberSize >= 16}
+                    className="w-7 h-7 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-30 flex items-center justify-center font-bold text-slate-700 cursor-pointer text-sm"
+                    title="Perbesar font nomor peserta"
+                  >
+                    +
+                  </button>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="flex flex-wrap gap-1 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => updateFontSize('numberSize', 0)}
+                    className={`px-2 py-0.5 rounded text-[10px] border cursor-pointer ${
+                      fontSizes.numberSize === 0 
+                        ? 'bg-amber-600 text-white border-amber-700 font-bold' 
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    Auto
+                  </button>
+                  {[8, 9, 10, 11, 12, 13, 14].map((sz) => (
+                    <button
+                      key={sz}
+                      type="button"
+                      onClick={() => updateFontSize('numberSize', sz)}
+                      className={`px-1.5 py-0.5 rounded text-[10px] border cursor-pointer ${
+                        fontSizes.numberSize === sz 
+                          ? 'bg-amber-600 text-white border-amber-700 font-bold' 
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {sz}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 3. Nomor Ruang */}
+              <div className="bg-white p-3 rounded-lg border border-amber-200 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <span>🚪 Nomor Ruang</span>
+                  </span>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900">
+                    {fontSizes.roomSize === 0 ? 'Bawaan (Auto)' : `${fontSizes.roomSize} px`}
+                  </span>
+                </div>
+
+                {/* Stepper + Slider */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => updateFontSize('roomSize', (fontSizes.roomSize || 22) - 2)}
+                    disabled={fontSizes.roomSize !== 0 && fontSizes.roomSize <= 12}
+                    className="w-7 h-7 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-30 flex items-center justify-center font-bold text-slate-700 cursor-pointer text-sm"
+                    title="Perkecil nomor ruang"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="range"
+                    min="12"
+                    max="36"
+                    step="2"
+                    value={fontSizes.roomSize || 22}
+                    onChange={(e) => updateFontSize('roomSize', Number(e.target.value))}
+                    className="flex-1 accent-amber-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => updateFontSize('roomSize', (fontSizes.roomSize || 22) + 2)}
+                    disabled={fontSizes.roomSize >= 36}
+                    className="w-7 h-7 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-30 flex items-center justify-center font-bold text-slate-700 cursor-pointer text-sm"
+                    title="Perbesar nomor ruang"
+                  >
+                    +
+                  </button>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="flex flex-wrap gap-1 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => updateFontSize('roomSize', 0)}
+                    className={`px-2 py-0.5 rounded text-[10px] border cursor-pointer ${
+                      fontSizes.roomSize === 0 
+                        ? 'bg-amber-600 text-white border-amber-700 font-bold' 
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    Auto
+                  </button>
+                  {[16, 18, 20, 22, 24, 28, 32].map((sz) => (
+                    <button
+                      key={sz}
+                      type="button"
+                      onClick={() => updateFontSize('roomSize', sz)}
+                      className={`px-1.5 py-0.5 rounded text-[10px] border cursor-pointer ${
+                        fontSizes.roomSize === sz 
+                          ? 'bg-amber-600 text-white border-amber-700 font-bold' 
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {sz}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Live Preview Box */}
+            <div className="p-3 bg-white rounded-lg border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-bold text-amber-950 shrink-0">Pratinjau Langsung:</span>
+                <div className="flex flex-wrap items-center gap-3 bg-amber-50/50 px-3 py-1.5 rounded border border-amber-200/80">
+                  <div>
+                    <span className="text-[8.5px] text-slate-400 block font-sans">Nama:</span>
+                    <span 
+                      className="font-bold text-slate-900 uppercase"
+                      style={fontSizes.nameSize ? { fontSize: `${fontSizes.nameSize}px`, lineHeight: 1 } : { fontSize: '10px' }}
+                    >
+                      AHMAD SAIFULLAH
+                    </span>
+                  </div>
+                  <div className="border-l border-amber-200 pl-3">
+                    <span className="text-[8.5px] text-slate-400 block font-sans">No. Peserta:</span>
+                    <span 
+                      className="font-bold font-mono text-slate-900"
+                      style={fontSizes.numberSize ? { fontSize: `${fontSizes.numberSize}px`, lineHeight: 1 } : { fontSize: '10px' }}
+                    >
+                      26-04-01-001-8
+                    </span>
+                  </div>
+                  <div className="border-l border-amber-200 pl-3">
+                    <span className="text-[8.5px] text-slate-400 block font-sans">Ruang:</span>
+                    <span 
+                      className="font-extrabold text-slate-900"
+                      style={fontSizes.roomSize ? { fontSize: `${fontSizes.roomSize}px`, lineHeight: 1 } : { fontSize: '20px' }}
+                    >
+                      01
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 self-end sm:self-center">
+                <span className="text-[10px] text-slate-500 font-medium">Setelan Cepat:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateFontSize('nameSize', 9);
+                    updateFontSize('numberSize', 9);
+                    updateFontSize('roomSize', 18);
+                  }}
+                  className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-bold cursor-pointer"
+                >
+                  Kompak
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateFontSize('nameSize', 11);
+                    updateFontSize('numberSize', 11);
+                    updateFontSize('roomSize', 24);
+                  }}
+                  className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-bold cursor-pointer"
+                >
+                  Jelas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateFontSize('nameSize', 13);
+                    updateFontSize('numberSize', 13);
+                    updateFontSize('roomSize', 28);
+                  }}
+                  className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-bold cursor-pointer"
+                >
+                  Besar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Mini status indicator when panel is closed but custom fonts are active */}
+        {!showFontSizePanel && (fontSizes.nameSize > 0 || fontSizes.numberSize > 0 || fontSizes.roomSize > 0) && (
+          <div className="flex items-center justify-between p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900">
+            <div className="flex items-center gap-2">
+              <Type className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>
+                <strong>Ukuran Font Kustom Aktif:</strong>{' '}
+                {fontSizes.nameSize > 0 ? `Nama ${fontSizes.nameSize}px` : 'Nama Auto'} •{' '}
+                {fontSizes.numberSize > 0 ? `No. Peserta ${fontSizes.numberSize}px` : 'No Auto'} •{' '}
+                {fontSizes.roomSize > 0 ? `Ruang ${fontSizes.roomSize}px` : 'Ruang Auto'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowFontSizePanel(true)}
+                className="text-[11px] text-amber-800 font-bold underline hover:text-amber-950 cursor-pointer"
+              >
+                Ubah Ukuran
+              </button>
+              <button
+                type="button"
+                onClick={resetFontSizes}
+                className="text-[11px] text-slate-500 hover:text-red-600 cursor-pointer font-medium"
+              >
+                Reset
+              </button>
+            </div>
           </div>
         )}
 
@@ -734,6 +1238,7 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
                         absenNumber={student.seatNumber || (pageIndex * chunkSize + idx + 1)}
                         cardDensity={cardLayout === '4_per_page' ? '4_cards' : cardLayout === '3_per_page' ? '3_cards' : 'standard'}
                         isF4ThreeCards={cardLayout === '3_per_page'}
+                        fontSizes={fontSizes}
                       />
                     ) : (
                       <CompactExamCardItem
@@ -741,6 +1246,7 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
                         config={config}
                         signatory={signatory}
                         isCompactDense={cardLayout === '6_per_page'}
+                        fontSizes={fontSizes}
                       />
                     )}
 
@@ -790,14 +1296,77 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
 
             <div className="p-4 overflow-y-auto space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Judul Tabel Jadwal (Kanan Kartu)</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-bold text-slate-700">Judul Tabel Jadwal (Kanan Kartu)</label>
+                  {customScheduleTitle && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomScheduleTitle(null);
+                        try {
+                          localStorage.removeItem('custom_exam_schedule_title');
+                        } catch (e) {
+                          console.error(e);
+                        }
+                      }}
+                      className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer underline"
+                      title="Kembalikan ke judul otomatis sesuai jenis ujian yang dipilih"
+                    >
+                      Gunakan Otomatis ({config.examType || 'STS'})
+                    </button>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={scheduleTitle}
-                  onChange={(e) => setScheduleTitle(e.target.value)}
-                  placeholder="JADWAL UAS GENAP KELAS VII DAN VIII"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomScheduleTitle(val);
+                    try {
+                      localStorage.setItem('custom_exam_schedule_title', val);
+                    } catch (err) {
+                      console.error(err);
+                    }
+                  }}
+                  placeholder={defaultScheduleTitle}
                   className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 font-bold uppercase text-xs"
                 />
+                <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                  <span className="text-[10px] text-slate-400 font-medium">Pilihan Cepat:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomScheduleTitle(null);
+                      try {
+                        localStorage.removeItem('custom_exam_schedule_title');
+                      } catch (e) {
+                        console.error(e);
+                      }
+                    }}
+                    className={`px-2 py-0.5 rounded text-[10px] font-semibold cursor-pointer border ${
+                      !customScheduleTitle 
+                        ? 'bg-indigo-600 text-white border-indigo-700' 
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    Otomatis ({config.examType || 'STS'} {config.semester?.toUpperCase() || 'GANJIL'})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const val = `JADWAL ASESMEN ${config.examType || 'STS'} KELAS VII, VIII & IX`;
+                      setCustomScheduleTitle(val);
+                      try {
+                        localStorage.setItem('custom_exam_schedule_title', val);
+                      } catch (e) {
+                        console.error(e);
+                      }
+                    }}
+                    className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-semibold cursor-pointer border border-slate-200"
+                  >
+                    Asesmen {config.examType || 'STS'}
+                  </button>
+                </div>
               </div>
 
               <div className="border-t border-slate-100 pt-3">
@@ -1154,6 +1723,16 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal Upload TTD & Stempel */}
+      <SignatureStampModal
+        isOpen={showSignatureStampModal}
+        onClose={() => setShowSignatureStampModal(false)}
+        config={config}
+        onSaveConfig={(updated) => {
+          if (onUpdateConfig) onUpdateConfig(updated);
+        }}
+      />
     </div>
   );
 };
@@ -1171,6 +1750,7 @@ interface ScheduleExamCardItemProps {
   absenNumber: number | string;
   isF4ThreeCards?: boolean;
   cardDensity?: '4_cards' | '3_cards' | 'standard';
+  fontSizes?: CardFontSizes;
 }
 
 const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
@@ -1183,11 +1763,15 @@ const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
   absenNumber,
   isF4ThreeCards = false,
   cardDensity,
+  fontSizes,
 }) => {
-  const isPrincipal = signatory === 'principal';
+  const effectiveSigner = config.signatureSigner || signatory;
+  const isPrincipal = effectiveSigner === 'principal';
   const signerName = isPrincipal ? config.principalName : config.committeeHeadName;
   const signerNip = isPrincipal ? config.principalNip : config.committeeHeadNip;
-  const signerTitle = isPrincipal ? 'Kepala Sekolah,' : 'Ketua Pelaksana,';
+  const signerTitle = isPrincipal 
+    ? (['MTs', 'MA', 'MI'].includes(config.schoolLevel) ? 'Kepala Madrasah,' : 'Kepala Sekolah,')
+    : 'Ketua Pelaksana,';
 
   const density: '4_cards' | '3_cards' | 'standard' =
     cardDensity || (isF4ThreeCards ? '3_cards' : 'standard');
@@ -1269,19 +1853,37 @@ const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
             {/* Biodata Siswa */}
             <div className={`text-black ${isFour ? 'py-0.5 space-y-0.5 text-[8.5px]' : isThree ? 'py-0.5 space-y-0.2 text-[9px] sm:text-[9.5px]' : 'py-2.5 space-y-1.5 text-xs'}`}>
               <div className="flex items-baseline">
-                <span className={`${isFour ? 'w-16 text-[8px]' : isThree ? 'w-18 sm:w-20 text-[8.5px]' : 'w-24 text-[11px] sm:text-xs'} font-normal text-black`}>Nama</span>
-                <span className="w-2 text-center">:</span>
-                <span className={`font-bold uppercase flex-1 truncate ${isFour ? 'text-[8.5px] sm:text-[9px]' : isThree ? 'text-[9px] sm:text-[9.5px]' : 'text-[11px] sm:text-xs'}`}>{student.name}</span>
+                <span className={`${isFour ? 'w-16 text-[8px]' : isThree ? 'w-18 sm:w-20 text-[8.5px]' : 'w-24 text-[11px] sm:text-xs'} font-normal text-black shrink-0`}>Nama</span>
+                <span className="w-2 text-center shrink-0">:</span>
+                <span 
+                  className={`font-bold uppercase flex-1 truncate ${
+                    fontSizes?.nameSize 
+                      ? '' 
+                      : isFour ? 'text-[8.5px] sm:text-[9px]' : isThree ? 'text-[9px] sm:text-[9.5px]' : 'text-[11px] sm:text-xs'
+                  }`}
+                  style={fontSizes?.nameSize ? { fontSize: `${fontSizes.nameSize}px`, lineHeight: 1.2 } : undefined}
+                >
+                  {student.name}
+                </span>
               </div>
               <div className="flex items-baseline">
-                <span className={`${isFour ? 'w-16 text-[8px]' : isThree ? 'w-18 sm:w-20 text-[8.5px]' : 'w-24 text-[11px] sm:text-xs'} font-normal text-black`}>Kelas</span>
-                <span className="w-2 text-center">:</span>
+                <span className={`${isFour ? 'w-16 text-[8px]' : isThree ? 'w-18 sm:w-20 text-[8.5px]' : 'w-24 text-[11px] sm:text-xs'} font-normal text-black shrink-0`}>Kelas</span>
+                <span className="w-2 text-center shrink-0">:</span>
                 <span className={`font-bold flex-1 ${isFour ? 'text-[8.5px] sm:text-[9px]' : isThree ? 'text-[9px] sm:text-[9.5px]' : 'text-[11px] sm:text-xs'}`}>{student.className}</span>
               </div>
               <div className="flex items-baseline">
-                <span className={`${isFour ? 'w-16 text-[8px]' : isThree ? 'w-18 sm:w-20 text-[8.5px]' : 'w-24 text-[11px] sm:text-xs'} font-normal text-black`}>No. Peserta</span>
-                <span className="w-2 text-center">:</span>
-                <span className={`font-bold font-mono flex-1 ${isFour ? 'text-[8.5px] sm:text-[9px]' : isThree ? 'text-[9px] sm:text-[9.5px]' : 'text-[11px] sm:text-xs'}`}>{student.examNumber}</span>
+                <span className={`${isFour ? 'w-16 text-[8px]' : isThree ? 'w-18 sm:w-20 text-[8.5px]' : 'w-24 text-[11px] sm:text-xs'} font-normal text-black shrink-0`}>No. Peserta</span>
+                <span className="w-2 text-center shrink-0">:</span>
+                <span 
+                  className={`font-bold font-mono flex-1 ${
+                    fontSizes?.numberSize 
+                      ? '' 
+                      : isFour ? 'text-[8.5px] sm:text-[9px]' : isThree ? 'text-[9px] sm:text-[9.5px]' : 'text-[11px] sm:text-xs'
+                  }`}
+                  style={fontSizes?.numberSize ? { fontSize: `${fontSizes.numberSize}px`, lineHeight: 1.2 } : undefined}
+                >
+                  {student.examNumber}
+                </span>
               </div>
             </div>
           </div>
@@ -1294,19 +1896,67 @@ const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
                 <div className={`border-b border-black font-medium text-black bg-white ${isFour ? 'py-0 text-[7px]' : isThree ? 'py-0 text-[8px]' : 'py-0.5 text-[11px]'}`}>
                   Ruang
                 </div>
-                <div className={`font-extrabold text-black leading-none font-sans ${isFour ? 'py-0 text-base sm:text-lg' : isThree ? 'py-0.2 text-xl sm:text-[22px]' : 'py-1 sm:py-2 text-2xl sm:text-3xl'}`}>
+                <div 
+                  className={`font-extrabold text-black leading-none font-sans ${
+                    fontSizes?.roomSize 
+                      ? 'py-0.5' 
+                      : isFour ? 'py-0 text-base sm:text-lg' : isThree ? 'py-0.2 text-xl sm:text-[22px]' : 'py-1 sm:py-2 text-2xl sm:text-3xl'
+                  }`}
+                  style={fontSizes?.roomSize ? { fontSize: `${fontSizes.roomSize}px`, lineHeight: 1 } : undefined}
+                >
                   {roomDisplayNumber}
                 </div>
               </div>
 
               {/* Tanda Tangan Block */}
-              <div className={`text-right leading-tight text-black shrink-0 ${isFour ? 'text-[7.5px]' : isThree ? 'text-[8px] sm:text-[8.5px]' : 'text-[10px]'}`}>
-                <p className="text-black">{config.issuePlace || 'Gresik'}, {config.issueDate || '30 September 2014'}</p>
+              <div className={`text-right leading-tight text-black shrink-0 relative ${isFour ? 'text-[7.5px]' : isThree ? 'text-[8px] sm:text-[8.5px]' : 'text-[10px]'}`}>
+                <p className="text-black">{config.issuePlace || 'Gresik'}, {config.issueDate || '30 September 2026'}</p>
                 <p className="font-semibold mt-0.5 text-black">{signerTitle}</p>
-                <div className={`flex items-center justify-end ${isFour ? 'h-2.5 sm:h-3' : isThree ? 'h-3 sm:h-3.5' : 'h-8 sm:h-10'}`}>
-                  {/* Space for stamp/signature */}
+                
+                {/* Space for stamp/signature */}
+                <div 
+                  className="relative flex items-center justify-end my-0.5"
+                  style={{
+                    height: isFour ? '20px' : isThree ? '24px' : '36px',
+                    minWidth: isFour ? '85px' : isThree ? '100px' : '130px'
+                  }}
+                >
+                  {/* Stempel Sekolah / Madrasah (overlapping left with authentic tilt and opacity) */}
+                  {config.stampEnabled && config.stampUrl && (
+                    <div 
+                      className="absolute z-10 pointer-events-none select-none print:opacity-100"
+                      style={{
+                        right: isFour ? '28px' : isThree ? '36px' : '48px',
+                        bottom: isFour ? '-3px' : isThree ? '-4px' : '-6px',
+                        width: isFour ? '28px' : isThree ? '34px' : '46px',
+                        height: isFour ? '28px' : isThree ? '34px' : '46px',
+                        opacity: 0.9,
+                        transform: 'rotate(-7deg)',
+                      }}
+                    >
+                      <img src={config.stampUrl} alt="Stempel" className="w-full h-full object-contain" />
+                    </div>
+                  )}
+
+                  {/* Tanda Tangan Digital (TTD) */}
+                  {config.signatureEnabled !== false && config.signatureUrl && (
+                    <div 
+                      className="relative z-0 flex items-center justify-end"
+                      style={{
+                        height: isFour ? '18px' : isThree ? '22px' : '32px',
+                        maxHeight: isFour ? '18px' : isThree ? '22px' : '32px'
+                      }}
+                    >
+                      <img 
+                        src={config.signatureUrl} 
+                        alt="Tanda Tangan" 
+                        className="h-full w-auto object-contain max-w-[110px]" 
+                      />
+                    </div>
+                  )}
                 </div>
-                <p className={`font-bold uppercase underline leading-tight text-black ${isFour ? 'text-[8px]' : isThree ? 'text-[9px]' : 'text-[10.5px]'}`}>{signerName}</p>
+
+                <p className={`font-bold uppercase underline leading-tight text-black relative z-10 ${isFour ? 'text-[8px]' : isThree ? 'text-[9px]' : 'text-[10.5px]'}`}>{signerName}</p>
                 <p className={`font-mono mt-0.5 text-black ${isFour ? 'text-[6.5px]' : isThree ? 'text-[7.5px]' : 'text-[9px]'}`}>NIP {signerNip || '-'}</p>
               </div>
             </div>
@@ -1447,6 +2097,7 @@ interface CompactExamCardItemProps {
   config: ExamConfig;
   signatory: 'committee' | 'principal';
   isCompactDense?: boolean;
+  fontSizes?: CardFontSizes;
 }
 
 const CompactExamCardItem: React.FC<CompactExamCardItemProps> = ({
@@ -1454,11 +2105,15 @@ const CompactExamCardItem: React.FC<CompactExamCardItemProps> = ({
   config,
   signatory,
   isCompactDense = false,
+  fontSizes,
 }) => {
-  const isPrincipal = signatory === 'principal';
+  const effectiveSigner = config.signatureSigner || signatory;
+  const isPrincipal = effectiveSigner === 'principal';
   const signerName = isPrincipal ? config.principalName : config.committeeHeadName;
   const signerNip = isPrincipal ? config.principalNip : config.committeeHeadNip;
-  const signerTitle = isPrincipal ? 'Kepala Sekolah,' : 'Ketua Panitia Ujian,';
+  const signerTitle = isPrincipal 
+    ? (['MTs', 'MA', 'MI'].includes(config.schoolLevel) ? 'Kepala Madrasah,' : 'Kepala Sekolah,')
+    : 'Ketua Panitia Ujian,';
 
   return (
     <div className={`page-break-inside-avoid bg-white border-2 border-slate-900 rounded-lg shadow-xs print:shadow-none relative overflow-hidden flex flex-col justify-between text-slate-900 font-sans ${
@@ -1490,7 +2145,10 @@ const CompactExamCardItem: React.FC<CompactExamCardItemProps> = ({
         </div>
 
         <div className="text-right shrink-0">
-          <span className="text-[9px] font-mono bg-slate-100 px-2 py-0.5 rounded border border-slate-200 font-bold text-slate-800 uppercase">
+          <span 
+            className="text-[9px] font-mono bg-slate-100 px-2 py-0.5 rounded border border-slate-200 font-bold text-slate-800 uppercase inline-block"
+            style={fontSizes?.roomSize ? { fontSize: `${Math.min(fontSizes.roomSize, 14)}px` } : undefined}
+          >
             {student.roomName || 'BELUM DIATUR'}
           </span>
           <p className="text-[9px] text-slate-500 mt-1">
@@ -1516,12 +2174,22 @@ const CompactExamCardItem: React.FC<CompactExamCardItemProps> = ({
         <div className={`flex-1 grid grid-cols-2 gap-y-1.5 gap-x-2 text-xs ${isCompactDense ? 'text-[10px]' : 'text-xs'}`}>
           <div className="col-span-2">
             <span className="text-[7.5px] uppercase font-bold text-slate-400 tracking-wider block">Nomor Peserta</span>
-            <span className="font-mono font-bold text-xs sm:text-sm text-indigo-950 tracking-wide">{student.examNumber}</span>
+            <span 
+              className="font-mono font-bold text-indigo-950 tracking-wide block"
+              style={fontSizes?.numberSize ? { fontSize: `${fontSizes.numberSize}px` } : { fontSize: isCompactDense ? '12px' : '13px' }}
+            >
+              {student.examNumber}
+            </span>
           </div>
 
           <div className="col-span-2">
             <span className="text-[7.5px] uppercase font-bold text-slate-400 tracking-wider block">Nama Lengkap Siswa</span>
-            <span className="font-bold text-slate-900 text-xs uppercase truncate block">{student.name}</span>
+            <span 
+              className="font-bold text-slate-900 uppercase truncate block"
+              style={fontSizes?.nameSize ? { fontSize: `${fontSizes.nameSize}px` } : { fontSize: isCompactDense ? '11px' : '12px' }}
+            >
+              {student.name}
+            </span>
           </div>
 
           <div>
@@ -1554,10 +2222,42 @@ const CompactExamCardItem: React.FC<CompactExamCardItemProps> = ({
         <div className="text-right relative">
           <p className="text-slate-500 font-medium">{config.issuePlace}, {config.issueDate}</p>
           <p className="font-bold text-slate-700 mt-0.5">{signerTitle}</p>
-          <div className={`${isCompactDense ? 'h-5' : 'h-7'} flex items-center justify-end`}>
-            <span className="font-serif italic text-slate-300 text-[9px] select-none mr-2">ttd &amp; cap</span>
+          
+          <div 
+            className="relative flex items-center justify-end my-0.5"
+            style={{ height: isCompactDense ? '22px' : '30px', minWidth: '105px' }}
+          >
+            {/* Stempel */}
+            {config.stampEnabled && config.stampUrl && (
+              <div 
+                className="absolute z-10 pointer-events-none select-none print:opacity-100"
+                style={{
+                  right: isCompactDense ? '28px' : '38px',
+                  bottom: '-3px',
+                  width: isCompactDense ? '28px' : '36px',
+                  height: isCompactDense ? '28px' : '36px',
+                  opacity: 0.88,
+                  transform: 'rotate(-7deg)'
+                }}
+              >
+                <img src={config.stampUrl} alt="Stempel" className="w-full h-full object-contain" />
+              </div>
+            )}
+
+            {/* TTD */}
+            {config.signatureEnabled !== false && config.signatureUrl ? (
+              <div 
+                className="relative z-0 flex items-center justify-end"
+                style={{ height: isCompactDense ? '20px' : '28px' }}
+              >
+                <img src={config.signatureUrl} alt="TTD" className="h-full w-auto object-contain max-w-[100px]" />
+              </div>
+            ) : (
+              <span className="font-serif italic text-slate-300 text-[9px] select-none mr-2">ttd &amp; cap</span>
+            )}
           </div>
-          <p className="font-bold text-slate-900 border-b border-slate-900 inline-block leading-tight">{signerName}</p>
+
+          <p className="font-bold text-slate-900 border-b border-slate-900 inline-block leading-tight relative z-10">{signerName}</p>
           <p className="text-slate-500 font-mono text-[7px] mt-0.5">NIP. {signerNip || '-'}</p>
         </div>
       </div>

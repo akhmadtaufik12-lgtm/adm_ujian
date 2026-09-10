@@ -12,7 +12,9 @@ import {
   Trash2, 
   Sparkles,
   AlertCircle,
-  Eye
+  Eye,
+  FileSignature,
+  Stamp
 } from 'lucide-react';
 import { 
   processLogoFile, 
@@ -20,6 +22,7 @@ import {
   PRESET_LOGO_MTS, 
   PRESET_LOGO_TUTWURI 
 } from '../utils/logoUtils';
+import { SignatureStampModal } from './SignatureStampModal';
 
 interface ConfigViewProps {
   config: ExamConfig;
@@ -29,6 +32,7 @@ interface ConfigViewProps {
 export const ConfigView: React.FC<ConfigViewProps> = ({ config, onSaveConfig }) => {
   const [formData, setFormData] = useState<ExamConfig>(config);
   const [showSavedToast, setShowSavedToast] = useState(false);
+  const [showSignatureStampModal, setShowSignatureStampModal] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isProcessingLogo, setIsProcessingLogo] = useState(false);
@@ -630,7 +634,7 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ config, onSaveConfig }) 
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Kota / Tempat Terbit Kartu
@@ -654,17 +658,116 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ config, onSaveConfig }) 
                 className="w-full px-3 py-2 text-xs border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               />
             </div>
-            <div className="flex items-center gap-2 pt-6">
-              <input
-                type="checkbox"
-                id="stampCheck"
-                checked={formData.stampEnabled}
-                onChange={(e) => setFormData({ ...formData, stampEnabled: e.target.checked })}
-                className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
-              />
-              <label htmlFor="stampCheck" className="text-xs font-semibold text-slate-700 cursor-pointer">
-                Tampilkan Stempel Resmi Sekolah pada Kartu Ujian
-              </label>
+          </div>
+
+          {/* Dedicated Card: Tanda Tangan & Stempel Resmi */}
+          <div className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/40 space-y-3 mt-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-indigo-100 pb-2.5">
+              <div className="flex items-center gap-2">
+                <FileSignature className="w-4 h-4 text-indigo-700" />
+                <span className="font-bold text-xs text-slate-900">Tanda Tangan &amp; Stempel Resmi Kartu Ujian</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSignatureStampModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-xs cursor-pointer transition-colors"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Upload TTD &amp; Stempel</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              {/* TTD Status & Toggle */}
+              <div className="p-3 bg-white rounded-lg border border-slate-200 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                    <FileSignature className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Tanda Tangan (TTD)</span>
+                  </div>
+                  <div className="mt-1 flex items-center gap-2">
+                    {formData.signatureUrl ? (
+                      <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200 px-2 py-0.2 rounded-full">
+                        Gambar Terpasang ✓
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.2 rounded-full">
+                        Belum Diunggah
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 text-[11px] font-semibold text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.signatureEnabled ?? true}
+                    onChange={(e) => setFormData({ ...formData, signatureEnabled: e.target.checked })}
+                    className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                  />
+                  <span>Tampilkan</span>
+                </label>
+              </div>
+
+              {/* Stempel Status & Toggle */}
+              <div className="p-3 bg-white rounded-lg border border-slate-200 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                    <Stamp className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Stempel Madrasah/Sekolah</span>
+                  </div>
+                  <div className="mt-1 flex items-center gap-2">
+                    {formData.stampUrl ? (
+                      <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200 px-2 py-0.2 rounded-full">
+                        Gambar Terpasang ✓
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.2 rounded-full">
+                        Belum Diunggah
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 text-[11px] font-semibold text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.stampEnabled}
+                    onChange={(e) => setFormData({ ...formData, stampEnabled: e.target.checked })}
+                    className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                  />
+                  <span>Tampilkan</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Penandatangan Selector */}
+            <div className="pt-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+              <span className="text-slate-600 font-medium text-[11px]">Pejabat yang Bertandatangan:</span>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-1.5 font-semibold text-slate-800 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="configSigner"
+                    value="principal"
+                    checked={(formData.signatureSigner || 'principal') === 'principal'}
+                    onChange={() => setFormData({ ...formData, signatureSigner: 'principal' })}
+                    className="text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>Kepala Sekolah / Madrasah</span>
+                </label>
+                <label className="flex items-center gap-1.5 font-semibold text-slate-800 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="configSigner"
+                    value="committee"
+                    checked={formData.signatureSigner === 'committee'}
+                    onChange={() => setFormData({ ...formData, signatureSigner: 'committee' })}
+                    className="text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>Ketua Panitia Ujian</span>
+                </label>
+              </div>
             </div>
           </div>
         </div>
@@ -733,6 +836,17 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ config, onSaveConfig }) 
           </button>
         </div>
       </form>
+
+      {/* Signature & Stamp Modal */}
+      <SignatureStampModal
+        isOpen={showSignatureStampModal}
+        onClose={() => setShowSignatureStampModal(false)}
+        config={formData}
+        onSaveConfig={(updated) => {
+          setFormData(updated);
+          onSaveConfig(updated);
+        }}
+      />
     </div>
   );
 };
