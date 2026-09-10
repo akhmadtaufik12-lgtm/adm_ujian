@@ -67,6 +67,45 @@
     width: 100% !important;
   }
 
+  .print-card-stack-4 {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  /* 3 Cards per sheet (Maximized layout to fill 1 F4 sheet proportionally) */
+  .f4-card-item-3 {
+    display: block !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin-bottom: 2mm !important;
+  }
+
+  .f4-cut-line-3 {
+    display: block !important;
+    margin-top: 1.5mm !important;
+    margin-bottom: 2.5mm !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* 4 Cards per sheet (Super-compact layout to fit exactly 4 cards on 1 F4 sheet) */
+  .f4-card-item-4 {
+    display: block !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin-bottom: 0.5mm !important;
+  }
+
+  .f4-cut-line-4 {
+    display: block !important;
+    margin-top: 0.3mm !important;
+    margin-bottom: 0.8mm !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
   .f4-card-item {
     display: block !important;
     box-sizing: border-box !important;
