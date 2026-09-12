@@ -11,7 +11,8 @@ import {
   Printer, 
   Calendar,
   Layers,
-  FileCheck2
+  FileCheck2,
+  UserCheck
 } from 'lucide-react';
 
 interface DashboardViewProps {
@@ -78,11 +79,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <span>Cetak Kartu Ujian</span>
             </button>
             <button
+              onClick={() => setActiveTab('proctors')}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 shadow-xs transition-colors"
+            >
+              <UserCheck className="w-4 h-4 text-indigo-600" />
+              <span>Pengawas &amp; Absen</span>
+            </button>
+            <button
               onClick={() => setActiveTab('documents')}
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 shadow-xs transition-colors"
             >
               <FileCheck2 className="w-4 h-4" />
-              <span>Presensi &amp; Berita Acara</span>
+              <span>Dokumen Ujian</span>
             </button>
           </div>
         </div>

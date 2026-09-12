@@ -71,6 +71,57 @@ export type ActiveTab =
   | 'config'
   | 'students'
   | 'rooms'
+  | 'proctors'
   | 'seating'
   | 'cards'
   | 'documents';
+
+export interface Proctor {
+  id: string;
+  name: string;
+  nip: string;
+  subject: string;
+  role?: 'Pengawas Ruang' | 'Pengawas Cadangan' | 'Koordinator';
+  phone?: string;
+  assignedRoomId?: string;
+  assignedRoomCode?: string;
+  assignedPosition?: 1 | 2;
+}
+
+export interface ProctorAttendanceRecord {
+  id: string;
+  proctorId: string;
+  proctorName: string;
+  proctorNip: string;
+  scheduleId: string;
+  subject: string;
+  examDate: string;
+  sessionTime: string;
+  roomId?: string;
+  roomCode?: string;
+  position?: 1 | 2;
+  status: 'Hadir' | 'Izin' | 'Sakit' | 'Digantikan';
+  checkInTime: string;
+  checkOutTime?: string;
+  signatureUrl?: string; // base64 PNG data URL of drawn signature
+  notes?: string;
+  timestamp: number;
+}
+
+export type UserRole = 'admin' | 'proctor' | 'student';
+
+export interface AuthUser {
+  id: string;
+  username: string;
+  name: string;
+  role: UserRole;
+  roleLabel: string;
+  nipOrNis?: string;
+  proctorId?: string;
+  studentId?: string;
+  roomCode?: string;
+  className?: string;
+  examNumber?: string;
+  avatar?: string;
+  loginTime: string;
+}

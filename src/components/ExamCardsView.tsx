@@ -1,7 +1,11 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { ExamConfig, ExamRoom, Student, ExamScheduleItem } from '../types';
 import { BarcodeSVG } from '../utils/barcode';
-import { IMAGE_SAMPLE_SCHEDULE, MTS_MADRASAH_SCHEDULE } from '../data/schedulePresets';
+import { 
+  MTS_MANBAUL_ISLAM_STS_SCHEDULE,
+  IMAGE_SAMPLE_SCHEDULE, 
+  MTS_MADRASAH_SCHEDULE 
+} from '../data/schedulePresets';
 import { 
   Printer, 
   Search, 
@@ -154,10 +158,17 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
   };
 
   // Schedule management
-  const [activePreset, setActivePreset] = useState<'sample_image' | 'mts' | 'custom'>('sample_image');
+  const [activePreset, setActivePreset] = useState<'sts' | 'sample_image' | 'mts' | 'custom'>('sts');
   const [localSchedules, setLocalSchedules] = useState<ExamScheduleItem[]>(() => {
-    return IMAGE_SAMPLE_SCHEDULE;
+    return propSchedules && propSchedules.length > 0 ? propSchedules : MTS_MANBAUL_ISLAM_STS_SCHEDULE;
   });
+
+  // Sync when propSchedules updates from parent
+  React.useEffect(() => {
+    if (propSchedules && propSchedules.length > 0) {
+      setLocalSchedules(propSchedules);
+    }
+  }, [propSchedules]);
 
   // Dynamically compute default schedule title based on active config (examType, semester, classes)
   const defaultScheduleTitle = useMemo(() => {
@@ -249,7 +260,7 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
   };
 
   // Switch preset
-  const handleSelectPreset = (preset: 'sample_image' | 'mts') => {
+  const handleSelectPreset = (preset: 'sts' | 'sample_image' | 'mts') => {
     setActivePreset(preset);
     setCustomScheduleTitle(null);
     try {
@@ -258,7 +269,10 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
       console.error(e);
     }
 
-    if (preset === 'sample_image') {
+    if (preset === 'sts') {
+      setLocalSchedules(MTS_MANBAUL_ISLAM_STS_SCHEDULE);
+      if (onUpdateSchedules) onUpdateSchedules(MTS_MANBAUL_ISLAM_STS_SCHEDULE);
+    } else if (preset === 'sample_image') {
       setLocalSchedules(IMAGE_SAMPLE_SCHEDULE);
       if (onUpdateSchedules) onUpdateSchedules(IMAGE_SAMPLE_SCHEDULE);
     } else {
@@ -901,31 +915,43 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
 
           {/* Schedule Preset Switcher */}
           {cardFormat === 'schedule_card' && (
-            <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs">
+            <div className="flex flex-wrap items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs">
               <span className="font-bold text-slate-700 shrink-0">Pilihan Jadwal:</span>
               <button
                 type="button"
-                onClick={() => handleSelectPreset('sample_image')}
-                className={`flex-1 py-1.5 px-2.5 rounded font-semibold text-center transition-all cursor-pointer truncate ${
-                  activePreset === 'sample_image'
-                    ? 'bg-slate-900 text-white shadow-xs'
+                onClick={() => handleSelectPreset('sts')}
+                className={`flex-1 min-w-[150px] py-1.5 px-2.5 rounded font-semibold text-center transition-all cursor-pointer truncate ${
+                  activePreset === 'sts'
+                    ? 'bg-emerald-700 text-white shadow-xs'
                     : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
                 }`}
-                title="12 Sesi: Matematika, PAI, IPA, PKn, B. Indonesia, SBK, B. Inggris, TIK, PLH, B. Jawa, IPS, BTQ"
+                title="17 Sesi (Senin-Sabtu): B. Indo, IPS, TIK, Mat, Alquran Hadist, Prakarya, B. Ing, Fiqih, Seni Budaya, IPA, B. Sunda, SKI, PKn, B. Arab, Akidah, BTQ, Penjas"
               >
-                Gambar Contoh (12 Mapel)
+                ⭐ STS Ganjil (17 Mapel)
               </button>
               <button
                 type="button"
                 onClick={() => handleSelectPreset('mts')}
-                className={`flex-1 py-1.5 px-2.5 rounded font-semibold text-center transition-all cursor-pointer truncate ${
+                className={`flex-1 min-w-[140px] py-1.5 px-2.5 rounded font-semibold text-center transition-all cursor-pointer truncate ${
                   activePreset === 'mts'
                     ? 'bg-slate-900 text-white shadow-xs'
                     : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
                 }`}
                 title="11 Sesi: Al-Qur'an Hadits, Akidah, Fikih, SKI, B. Arab, B. Indo, B. Ing, Mat, PPKn, IPA, IPS"
               >
-                MTs Manbaul Islam (11 Mapel)
+                SAS / AM (11 Mapel)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectPreset('sample_image')}
+                className={`flex-1 min-w-[140px] py-1.5 px-2.5 rounded font-semibold text-center transition-all cursor-pointer truncate ${
+                  activePreset === 'sample_image'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                }`}
+                title="12 Sesi: Matematika, PAI, IPA, PKn, B. Indonesia, SBK, B. Inggris, TIK, PLH, B. Jawa, IPS, BTQ"
+              >
+                Contoh Gambar (12 Mapel)
               </button>
             </div>
           )}
@@ -1467,21 +1493,28 @@ export const ExamCardsView: React.FC<ExamCardsViewProps> = ({
               </div>
             </div>
 
-            <div className="p-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
-              <div className="flex gap-2">
+            <div className="p-3 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 <button
                   type="button"
-                  onClick={() => handleSelectPreset('sample_image')}
-                  className="px-2.5 py-1 text-[11px] bg-white border border-slate-300 rounded text-slate-700 hover:bg-slate-100 font-medium cursor-pointer"
+                  onClick={() => handleSelectPreset('sts')}
+                  className="px-2.5 py-1 text-[11px] bg-emerald-700 text-white rounded font-bold hover:bg-emerald-800 cursor-pointer shadow-2xs"
                 >
-                  Reset Contoh Gambar
+                  Gunakan STS (17 Mapel)
                 </button>
                 <button
                   type="button"
                   onClick={() => handleSelectPreset('mts')}
                   className="px-2.5 py-1 text-[11px] bg-white border border-slate-300 rounded text-slate-700 hover:bg-slate-100 font-medium cursor-pointer"
                 >
-                  Reset Jadwal MTs
+                  Reset SAS (11 Mapel)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectPreset('sample_image')}
+                  className="px-2.5 py-1 text-[11px] bg-white border border-slate-300 rounded text-slate-700 hover:bg-slate-100 font-medium cursor-pointer"
+                >
+                  Reset Gambar (12 Mapel)
                 </button>
               </div>
 
@@ -1778,6 +1811,11 @@ const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
   const isFour = density === '4_cards';
   const isThree = density === '3_cards';
 
+  const totalSessions = useMemo(() => {
+    return groupedDays.reduce((acc, d) => acc + d.sessions.length, 0);
+  }, [groupedDays]);
+  const isDenseSchedule = totalSessions > 12;
+
   return (
     <div
       className={`page-break-inside-avoid bg-white border-2 border-black text-black font-sans shadow-xs print:shadow-none w-full mx-auto select-text ${
@@ -2003,23 +2041,37 @@ const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
             {/* Schedule Table */}
             <div className="mt-0.5 overflow-x-auto">
               <table className={`w-full border-collapse border border-black leading-tight text-black ${
-                isFour ? 'text-[6.5px]' : isThree ? 'text-[6.8px]' : 'text-[9px] sm:text-[9.5px]'
+                isFour 
+                  ? (isDenseSchedule ? 'text-[5.5px]' : 'text-[6.5px]')
+                  : isThree 
+                    ? (isDenseSchedule ? 'text-[6px]' : 'text-[6.8px]')
+                    : (isDenseSchedule ? 'text-[8px] sm:text-[8.5px]' : 'text-[9px] sm:text-[9.5px]')
               }`}>
                 <thead>
                   <tr className="bg-slate-100 font-bold text-black border-b border-black">
-                    <th className={`border border-black text-center font-bold w-[22%] ${isFour ? 'p-0.5 text-[6.5px]' : isThree ? 'p-0.5 text-[6.8px]' : 'p-1'}`}>
+                    <th className={`border border-black text-center font-bold w-[22%] ${
+                      isFour ? 'p-[1px] text-[5.5px]' : isThree ? (isDenseSchedule ? 'p-[1px] text-[6px]' : 'p-0.5 text-[6.8px]') : 'p-1'
+                    }`}>
                       Hari/Tgl.
                     </th>
-                    <th className={`border border-black text-center font-bold w-[9%] ${isFour ? 'p-0.5 text-[6.5px]' : isThree ? 'p-0.5 text-[6.8px]' : 'p-1'}`}>
+                    <th className={`border border-black text-center font-bold w-[9%] ${
+                      isFour ? 'p-[1px] text-[5.5px]' : isThree ? (isDenseSchedule ? 'p-[1px] text-[6px]' : 'p-0.5 text-[6.8px]') : 'p-1'
+                    }`}>
                       Jam<br />Ke
                     </th>
-                    <th className={`border border-black text-center font-bold w-[21%] ${isFour ? 'p-0.5 text-[6.5px]' : isThree ? 'p-0.5 text-[6.8px]' : 'p-1'}`}>
+                    <th className={`border border-black text-center font-bold w-[21%] ${
+                      isFour ? 'p-[1px] text-[5.5px]' : isThree ? (isDenseSchedule ? 'p-[1px] text-[6px]' : 'p-0.5 text-[6.8px]') : 'p-1'
+                    }`}>
                       Waktu
                     </th>
-                    <th className={`border border-black text-left font-bold w-[32%] pl-1 ${isFour ? 'p-0.5 pl-1 text-[6.5px]' : isThree ? 'p-0.5 pl-1 text-[6.8px]' : 'p-1 pl-1.5'}`}>
+                    <th className={`border border-black text-left font-bold w-[32%] pl-1 ${
+                      isFour ? 'p-[1px] pl-0.5 text-[5.5px]' : isThree ? (isDenseSchedule ? 'p-[1px] pl-0.5 text-[6px]' : 'p-0.5 pl-1 text-[6.8px]') : 'p-1 pl-1.5'
+                    }`}>
                       Mata Pelajaran
                     </th>
-                    <th className={`border border-black text-center font-bold w-[16%] ${isFour ? 'p-0.5 text-[6.5px]' : isThree ? 'p-0.5 text-[6.8px]' : 'p-1'}`}>
+                    <th className={`border border-black text-center font-bold w-[16%] ${
+                      isFour ? 'p-[1px] text-[5.5px]' : isThree ? (isDenseSchedule ? 'p-[1px] text-[6px]' : 'p-0.5 text-[6.8px]') : 'p-1'
+                    }`}>
                       T. Tangan<br />Pengawas
                     </th>
                   </tr>
@@ -2034,39 +2086,59 @@ const ScheduleExamCardItem: React.FC<ScheduleExamCardItemProps> = ({
                           <td
                             rowSpan={sessionCount}
                             className={`border border-black text-center align-middle font-medium leading-tight bg-white ${
-                              isFour ? 'p-0.5 text-[6px]' : isThree ? 'p-0.5 text-[6.5px]' : 'p-1'
+                              isFour 
+                                ? 'p-[1px] text-[5.2px]' 
+                                : isThree 
+                                  ? (isDenseSchedule ? 'p-[1px] text-[5.8px]' : 'p-0.5 text-[6.5px]')
+                                  : (isDenseSchedule ? 'p-0.5 text-[7.5px]' : 'p-1')
                             }`}
                           >
                             <div className="font-bold text-black">{dayGroup.dayName}</div>
-                            <div className={`text-black mt-0.5 ${isFour ? 'text-[6px]' : isThree ? 'text-[6.5px]' : 'text-[8px] sm:text-[8.5px]'}`}>{dayGroup.date}</div>
+                            <div className={`text-black mt-0.5 ${
+                              isFour ? 'text-[5px]' : isThree ? (isDenseSchedule ? 'text-[5.5px]' : 'text-[6.5px]') : 'text-[8px] sm:text-[8.5px]'
+                            }`}>{dayGroup.date}</div>
                           </td>
                         )}
 
                         {/* Jam Ke */}
-                        <td className={`border border-black text-center align-middle font-mono font-semibold ${isFour ? 'p-0.5 text-[6.5px]' : isThree ? 'p-0.5 text-[7px]' : 'p-1'}`}>
+                        <td className={`border border-black text-center align-middle font-mono font-semibold ${
+                          isFour ? 'p-[1px] text-[5.5px]' : isThree ? (isDenseSchedule ? 'p-[1px] text-[6px]' : 'p-0.5 text-[7px]') : 'p-1'
+                        }`}>
                           {session.jamKe}
                         </td>
 
                         {/* Waktu */}
                         <td className={`border border-black text-center align-middle font-mono ${
-                          isFour ? 'p-0.5 text-[6px]' : isThree ? 'p-0.5 text-[6.5px]' : 'p-1 text-[8.5px] sm:text-[9px]'
+                          isFour 
+                            ? 'p-[1px] text-[5.2px]' 
+                            : isThree 
+                              ? (isDenseSchedule ? 'p-[1px] text-[5.8px]' : 'p-0.5 text-[6.5px]')
+                              : 'p-1 text-[8.5px] sm:text-[9px]'
                         }`}>
                           {session.time}
                         </td>
 
                         {/* Mata Pelajaran */}
                         <td className={`border border-black text-left align-middle font-semibold text-black ${
-                          isFour ? 'p-0.5 pl-1 text-[6.5px]' : isThree ? 'p-0.5 pl-1 text-[7px]' : 'p-1 pl-1.5'
+                          isFour 
+                            ? 'p-[1px] pl-0.5 text-[5.5px]' 
+                            : isThree 
+                              ? (isDenseSchedule ? 'p-[1px] pl-0.5 text-[6px]' : 'p-0.5 pl-1 text-[7px]')
+                              : 'p-1 pl-1.5'
                         }`}>
                           {session.subject}
                         </td>
 
                         {/* T. Tangan Pengawas (with numbered slot 1, 2, 3...) */}
                         <td className={`border border-black text-left align-top relative bg-white ${
-                          isFour ? 'p-0.5 h-3 text-[6px]' : isThree ? 'p-0.5 h-3 text-[6px]' : 'p-1 h-6 sm:h-7'
+                          isFour 
+                            ? 'p-[1px] h-2.5 text-[5px]' 
+                            : isThree 
+                              ? (isDenseSchedule ? 'p-[1px] h-2.5 text-[5.5px]' : 'p-0.5 h-3 text-[6px]')
+                              : (isDenseSchedule ? 'p-0.5 h-4 text-[7px]' : 'p-1 h-6 sm:h-7')
                         }`}>
                           <span className={`font-mono font-bold text-black block leading-none ${
-                            isFour ? 'text-[6px]' : isThree ? 'text-[6.5px]' : 'text-[8.5px]'
+                            isFour ? 'text-[5px]' : isThree ? (isDenseSchedule ? 'text-[5.5px]' : 'text-[6.5px]') : 'text-[8.5px]'
                           }`}>
                             {session.overallIndex}
                           </span>

@@ -1,24 +1,53 @@
 import React, { useState, useEffect } from 'react';
-import { ActiveTab, ExamConfig, ExamRoom, ExamScheduleItem, Student } from './types';
-import { initialConfig, initialRooms, initialSchedule, initialStudents } from './data/initialData';
+import { ActiveTab, AuthUser, ExamConfig, ExamRoom, ExamScheduleItem, Proctor, Student } from './types';
+import { initialConfig, initialProctors, initialRooms, initialSchedule, initialStudents } from './data/initialData';
 import { distributeCrossClass, distributeSequential, generateExamNumbers, distributeCrossLevelDoubleDesk } from './utils/distribution';
 import { Header } from './components/Header';
 import { DashboardView } from './components/DashboardView';
 import { ConfigView } from './components/ConfigView';
 import { StudentsView } from './components/StudentsView';
 import { RoomsView } from './components/RoomsView';
+import { ProctorsView } from './components/ProctorsView';
 import { SeatingChartView } from './components/SeatingChartView';
 import { ExamCardsView } from './components/ExamCardsView';
 import { ExamDocumentsView } from './components/ExamDocumentsView';
+import { LoginPortal } from './components/LoginPortal';
 
 const STORAGE_KEYS = {
-  CONFIG: 'sim_ujian_config_mts_v2',
+  CONFIG: 'sim_ujian_config_mts_v3',
   STUDENTS: 'sim_ujian_students_mts_v2',
   ROOMS: 'sim_ujian_rooms_mts_v2',
-  SCHEDULES: 'sim_ujian_schedules_mts_v2',
+  PROCTORS: 'sim_ujian_proctors_mts_v2',
+  SCHEDULES: 'sim_ujian_schedules_mts_v3',
+  AUTH_USER: 'sim_ujian_auth_user_v2',
 };
 
 export default function App() {
+  // Load auth state from localStorage
+  const [authUser, setAuthUser] = useState<AuthUser | null>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.AUTH_USER);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    // Check URL parameters for direct print bypass or tab
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('autoPrint') === 'true' || params.get('print') === 'true') {
+        return {
+          id: 'user-admin-print',
+          username: 'admin',
+          name: 'Administrator Panitia Ujian',
+          role: 'admin',
+          roleLabel: 'Panitia Ujian (Admin)',
+          loginTime: '08:00',
+        };
+      }
+    }
+    return null;
+  });
+
   // Load from localStorage or initial defaults
   const [config, setConfig] = useState<ExamConfig>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.CONFIG);
@@ -28,6 +57,11 @@ export default function App() {
   const [rooms, setRooms] = useState<ExamRoom[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.ROOMS);
     return saved ? JSON.parse(saved) : initialRooms;
+  });
+
+  const [proctors, setProctors] = useState<Proctor[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.PROCTORS);
+    return saved ? JSON.parse(saved) : initialProctors;
   });
 
   const [students, setStudents] = useState<Student[]>(() => {
@@ -49,7 +83,7 @@ export default function App() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tab = params.get('tab') as ActiveTab;
-      if (tab && ['dashboard', 'config', 'students', 'rooms', 'seating', 'cards', 'documents'].includes(tab)) {
+      if (tab && ['dashboard', 'config', 'students', 'rooms', 'proctors', 'seating', 'cards', 'documents'].includes(tab)) {
         return tab;
       }
     }
@@ -87,6 +121,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.ROOMS, JSON.stringify(rooms));
   }, [rooms]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.PROCTORS, JSON.stringify(proctors));
+  }, [proctors]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
@@ -186,6 +224,68 @@ export default function App() {
       prev.map((s) => (s.roomId === id ? { ...s, roomId: undefined, roomName: undefined, seatNumber: undefined } : s))
     );
     showToast('Ruang berhasil dihapus dan peserta di dalamnya dikosongkan.');
+  };
+
+  // --- Proctor Handlers ---
+  const handleSyncRoomsWithProctors = (updatedProctors: Proctor[]) => {
+    setProctors(updatedProctors);
+    // Automatically update proctor1 and proctor2 in rooms
+    setRooms((prevRooms) =>
+      prevRooms.map((room) => {
+        const p1 = updatedProctors.find(
+          (p) => p.assignedRoomId === room.id && p.assignedPosition === 1
+        );
+        const p2 = updatedProctors.find(
+          (p) => p.assignedRoomId === room.id && p.assignedPosition === 2
+        );
+        return {
+          ...room,
+          proctor1: p1 ? p1.name : room.proctor1,
+          proctor2: p2 ? p2.name : room.proctor2,
+        };
+      })
+    );
+  };
+
+  const handleAddProctor = (newProctor: Omit<Proctor, 'id'>) => {
+    const proctor: Proctor = {
+      ...newProctor,
+      id: `prc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    };
+    const updated = [...proctors, proctor];
+    handleSyncRoomsWithProctors(updated);
+    showToast(`Pengawas "${proctor.name}" berhasil ditambahkan.`);
+  };
+
+  const handleUpdateProctor = (updatedProctor: Proctor) => {
+    const updated = proctors.map((p) => (p.id === updatedProctor.id ? updatedProctor : p));
+    handleSyncRoomsWithProctors(updated);
+    showToast(`Data pengawas "${updatedProctor.name}" diperbarui.`);
+  };
+
+  const handleDeleteProctor = (id: string) => {
+    const updated = proctors.filter((p) => p.id !== id);
+    handleSyncRoomsWithProctors(updated);
+    showToast('Pengawas berhasil dihapus.');
+  };
+
+  const handleBulkAddProctors = (newProctors: Omit<Proctor, 'id'>[], replaceExisting: boolean = false) => {
+    const created: Proctor[] = newProctors.map((p, idx) => ({
+      ...p,
+      id: `prc-import-${Date.now()}-${idx}`,
+    }));
+    const updated = replaceExisting ? created : [...proctors, ...created];
+    handleSyncRoomsWithProctors(updated);
+    showToast(
+      replaceExisting
+        ? `Berhasil mengganti data dengan ${created.length} pengawas baru dari Excel.`
+        : `Berhasil menambahkan ${created.length} pengawas baru dari Excel.`
+    );
+  };
+
+  const handleResetProctors = () => {
+    handleSyncRoomsWithProctors(initialProctors);
+    showToast('Data pengawas berhasil di-reset ke data pengawas standar.');
   };
 
   // Distribution triggers
@@ -311,11 +411,13 @@ export default function App() {
       const { updatedStudents } = distributeCrossClass(initialStudents, initialRooms);
       setConfig(initialConfig);
       setRooms(initialRooms);
+      setProctors(initialProctors);
       setStudents(updatedStudents);
       setSchedules(initialSchedule);
       localStorage.removeItem(STORAGE_KEYS.CONFIG);
       localStorage.removeItem(STORAGE_KEYS.STUDENTS);
       localStorage.removeItem(STORAGE_KEYS.ROOMS);
+      localStorage.removeItem(STORAGE_KEYS.PROCTORS);
       localStorage.removeItem(STORAGE_KEYS.SCHEDULES);
       showToast('Data aplikasi berhasil dikembalikan ke data awal lengkap.');
     }
@@ -328,6 +430,43 @@ export default function App() {
     }, 400);
   };
 
+  const handleLogin = (user: AuthUser) => {
+    setAuthUser(user);
+    localStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(user));
+    setNotification(`Selamat datang, ${user.name}! Anda masuk sebagai ${user.roleLabel}.`);
+    if (user.role === 'proctor') {
+      setActiveTab('proctors');
+    } else if (user.role === 'student') {
+      setActiveTab('cards');
+    }
+  };
+
+  const handleLogout = () => {
+    setAuthUser(null);
+    localStorage.removeItem(STORAGE_KEYS.AUTH_USER);
+    setNotification('Anda telah berhasil keluar dari sesi.');
+  };
+
+  // If user is not logged in, render Portal Utama Login
+  if (!authUser) {
+    return (
+      <>
+        <LoginPortal
+          config={config}
+          proctors={proctors}
+          students={students}
+          onLogin={handleLogin}
+        />
+        {notification && (
+          <div className="fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-lg shadow-xl text-xs font-semibold flex items-center gap-2 border border-slate-700 animate-in fade-in slide-in-from-bottom-3 no-print">
+            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span>{notification}</span>
+          </div>
+        )}
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col antialiased">
       {/* Navigation Header */}
@@ -337,6 +476,8 @@ export default function App() {
         setActiveTab={setActiveTab}
         onResetData={handleResetData}
         onQuickPrint={handleQuickPrint}
+        authUser={authUser}
+        onLogout={handleLogout}
       />
 
       {/* Floating Notification Toast */}
@@ -393,6 +534,21 @@ export default function App() {
             onSetRoomsPreset={handleSetRoomsPreset}
             setActiveTab={setActiveTab}
             onSelectRoomForSeating={setSelectedRoomForSeating}
+          />
+        )}
+
+        {activeTab === 'proctors' && (
+          <ProctorsView
+            config={config}
+            proctors={proctors}
+            rooms={rooms}
+            schedules={schedules}
+            onAddProctor={handleAddProctor}
+            onUpdateProctor={handleUpdateProctor}
+            onDeleteProctor={handleDeleteProctor}
+            onBulkAddProctors={handleBulkAddProctors}
+            onResetProctors={handleResetProctors}
+            onSyncRoomsWithProctors={handleSyncRoomsWithProctors}
           />
         )}
 
